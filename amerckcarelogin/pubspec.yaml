@@ -24,7 +24,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-assets:
-  - assets/images/amerckcarelogo.png
-  - assets/images/Glogo.png
+  assets:
+    - assets/images/amerckcarelogo.png
+    - assets/images/Glogo.png
