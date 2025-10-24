@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "958254530971",
+    "project_id": "amerckcare-9d72a",
+    "storage_bucket": "amerckcare-9d72a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:958254530971:android:48e75ca221f786da00e13e",
+        "android_client_info": {
+          "package_name": "com.example.amerckcarelogin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgwX97_lXk24JXFGN4xKsj57EXhPatOjM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
