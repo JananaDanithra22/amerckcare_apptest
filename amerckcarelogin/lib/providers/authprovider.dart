@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:amerckcarelogin/screens/signupscreen.dart';
 
 class AuthProvider with ChangeNotifier {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   bool _isAuthenticated = false;
   bool get isAuthenticated => _isAuthenticated;
 
@@ -10,42 +15,67 @@ class AuthProvider with ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  /// Simulated email/password login
+  User? get user => _auth.currentUser;
+
+  /// Email/Password login
   Future<void> login(String email, String password) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    await Future.delayed(const Duration(seconds: 1)); // simulate delay
-
-    if (email.trim() == 'user@amerck.com' && password == 'password123') {
-      _isAuthenticated = true;
-    } else {
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      _isAuthenticated = credential.user != null;
+    } on FirebaseAuthException catch (e) {
       _isAuthenticated = false;
-      _errorMessage = 'Invalid username or password';
+      _errorMessage = e.message;
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  /// Dummy local Google-style login (no Firebase)
+  /// Google Sign-In
   Future<void> signInWithGoogle() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    await Future.delayed(const Duration(seconds: 1)); // simulate delay
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        _isLoading = false;
+        notifyListeners();
+        return; // user canceled
+      }
 
-    // Fake success response
-    _isAuthenticated = true;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential =
+          await _auth.signInWithCredential(credential);
+
+      _isAuthenticated = userCredential.user != null;
+    } on FirebaseAuthException catch (e) {
+      _isAuthenticated = false;
+      _errorMessage = e.message;
+    }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  /// Logout (local)
+  /// Logout
   Future<void> logout() async {
+    await _auth.signOut();
     _isAuthenticated = false;
     _errorMessage = null;
     notifyListeners();

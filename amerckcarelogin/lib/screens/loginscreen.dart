@@ -15,6 +15,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordCtrl = TextEditingController();
   bool _obscurePassword = true;
 
+  String? _emailError;
+  String? _passwordError;
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -91,24 +94,49 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 6),
 
                 // Email input box
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color.fromARGB(196, 238, 238, 238),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: TextFormField(
-                    controller: _emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(fontSize: 18, color: Colors.black),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      hintText: 'Enter your email',
-                      hintStyle: TextStyle(color: Colors.grey),
+                // Email input box
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color.fromARGB(196, 238, 238, 238),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: TextFormField(
+                        controller: _emailCtrl,
+                        keyboardType: TextInputType.emailAddress,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: Colors.black,
+                        ),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          hintText: 'Enter your email',
+                          hintStyle: TextStyle(color: Colors.grey),
+                        ),
+                        validator: (value) {
+                          final result = _validateEmail(value);
+                          setState(() => _emailError = result); // update error
+                          return null; // prevent default inside error
+                        },
+                      ),
                     ),
-                    validator: _validateEmail,
-                  ),
+                    if (_emailError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4, left: 8),
+                        child: Text(
+                          _emailError!,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
+
                 const SizedBox(height: 16),
 
                 // Password label
@@ -152,9 +180,28 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                       ),
                     ),
-                    validator: _validatePassword,
+                    validator: (value) {
+                      final error = _validatePassword(value);
+                      setState(
+                        () => _passwordError = error,
+                      ); // store error outside
+                      return null; // return null so no internal error shows
+                    },
                   ),
                 ),
+                // Display the error below the field
+                if (_passwordError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0, left: 8.0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _passwordError!,
+                        style: const TextStyle(color: Colors.red, fontSize: 14),
+                      ),
+                    ),
+                  ),
+
                 const SizedBox(height: 24),
 
                 // Sign In button
@@ -164,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: auth.isLoading ? null : _loginEmail,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
+                      backgroundColor: const Color.fromARGB(255, 28, 138, 229),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(buttonRadius),
                       ),
@@ -186,7 +233,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Sign In with SSO button
                 SizedBox(
                   width: buttonWidth,
                   height: buttonHeight,
@@ -194,17 +240,38 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed:
                         auth.isLoading
                             ? null
-                            : () {
-                              // TODO: Implement SSO login
+                            : () async {
+                              await auth.signInWithGoogle();
+                              if (auth.isAuthenticated) {
+                                if (!mounted) return;
+                                Navigator.pushReplacementNamed(
+                                  context,
+                                  '/home',
+                                );
+                              } else {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      auth.errorMessage ?? 'Login failed',
+                                    ),
+                                  ),
+                                );
+                              }
                             },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade800,
+                      backgroundColor: const Color.fromARGB(
+                        255,
+                        6,
+                        69,
+                        146,
+                      ), // Google style
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(buttonRadius),
                       ),
                     ),
                     child: const Text(
-                      'Sign In with SSO',
+                      'Sign in with Google',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -229,6 +296,35 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: TextDecoration.underline,
                     ),
                   ),
+                ),
+                // sign up
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "New here? ",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Color.fromARGB(133, 0, 0, 0),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        // Navigate to Sign Up screen
+                        Navigator.pushNamed(context, '/signup');
+                      },
+                      child: const Text(
+                        "Sign Up",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue, // Highlight
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

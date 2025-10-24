@@ -3,6 +3,7 @@
         "amerckcarelogin",
         "amerckcarelogo",
         "authprovider",
-        "firestore"
+        "firestore",
+        "signupscreen"
     ]
 }
