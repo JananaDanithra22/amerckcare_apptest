@@ -32,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _passwordError = null;
     });
 
-    // Validate fields
+    // Validate fields locally first
     final emailValidation = _validateEmail(_emailCtrl.text.trim());
     final passwordValidation = _validatePassword(_passwordCtrl.text);
 
@@ -46,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
 
+    // Attempt login
     await auth.login(_emailCtrl.text.trim(), _passwordCtrl.text);
 
     if (!mounted) return;
@@ -53,57 +54,55 @@ class _LoginScreenState extends State<LoginScreen> {
     if (auth.isAuthenticated) {
       Navigator.pushReplacementNamed(context, '/home');
     } else {
-      // Handle backend errors - reset errors first to ensure clean state
-      String? newEmailError;
-      String? newPasswordError;
-
-      final errorMsg = auth.errorMessage?.toLowerCase() ?? '';
-
-      // Check for various Firebase error patterns
-      if (errorMsg.contains('user not found') ||
-          errorMsg.contains('no account') ||
-          errorMsg.contains('user-not-found') ||
-          errorMsg.contains('no user record') ||
-          errorMsg.contains('email not found')) {
-        newEmailError = 'No account found with this email';
-      } else if (errorMsg.contains('disabled') ||
-          errorMsg.contains('account disabled') ||
-          errorMsg.contains('user-disabled')) {
-        newEmailError = 'This account has been disabled';
-      } else if (errorMsg.contains('wrong password') ||
-          errorMsg.contains('incorrect password') ||
-          errorMsg.contains('invalid password') ||
-          errorMsg.contains('wrong-password') ||
-          errorMsg.contains('password is invalid')) {
-        newPasswordError = 'Incorrect password';
-      } else if (errorMsg.contains('invalid-credential') ||
-          errorMsg.contains('invalid credential') ||
-          errorMsg.contains('credential is incorrect') ||
-          (errorMsg.contains('credential') && errorMsg.contains('incorrect'))) {
-        // Firebase generic error - could be either wrong email or password
-        // Show combined message to be accurate
-        newPasswordError = 'Invalid email or password';
-      } else if (errorMsg.contains('invalid-email') ||
-          errorMsg.contains('badly formatted') ||
-          errorMsg.contains('malformed')) {
-        newEmailError = 'Enter a valid email address';
-      } else if (errorMsg.contains('too-many-requests') ||
-          errorMsg.contains('too many')) {
-        newPasswordError = 'Too many failed attempts. Try again later';
-      } else if (errorMsg.contains('network') ||
-          errorMsg.contains('connection')) {
-        newPasswordError = 'Network error. Check your connection';
-      } else {
-        // Default: show under password field
-        newPasswordError = 'Invalid email or password';
-      }
-
-      // Set the new errors in state
-      setState(() {
-        _emailError = newEmailError;
-        _passwordError = newPasswordError;
-      });
+      // Handle Firebase authentication errors
+      _handleLoginError(auth.errorMessage);
     }
+  }
+
+  void _handleLoginError(String? errorMsg) {
+    if (errorMsg == null) {
+      setState(() {
+        _passwordError = 'Login failed. Please try again.';
+      });
+      return;
+    }
+
+    String? emailErr;
+    String? passwordErr;
+
+    final error = errorMsg.toLowerCase();
+
+    // Parse Firebase error codes and messages
+    if (error.contains('user-not-found') ||
+        error.contains('no user record') ||
+        error.contains('no account')) {
+      emailErr = 'No account found with this email';
+    } else if (error.contains('user-disabled') ||
+        error.contains('account disabled')) {
+      emailErr = 'This account has been disabled';
+    } else if (error.contains('wrong-password') ||
+        error.contains('password is invalid')) {
+      passwordErr = 'Incorrect password';
+    } else if (error.contains('invalid-credential') ||
+        error.contains('invalid credential')) {
+      // Firebase's generic "wrong email or password" error
+      passwordErr = 'Invalid email or password';
+    } else if (error.contains('invalid-email') ||
+        error.contains('badly formatted')) {
+      emailErr = 'Invalid email format';
+    } else if (error.contains('too-many-requests')) {
+      passwordErr = 'Too many failed attempts. Try again later';
+    } else if (error.contains('network') || error.contains('connection')) {
+      passwordErr = 'Network error. Check your connection';
+    } else {
+      // Default fallback
+      passwordErr = 'Invalid email or password';
+    }
+
+    setState(() {
+      _emailError = emailErr;
+      _passwordError = passwordErr;
+    });
   }
 
   String? _validateEmail(String? value) {
@@ -116,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     // Basic email pattern check
-    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (!emailRegex.hasMatch(value)) {
       return 'Enter a valid email address';
     }
@@ -193,10 +192,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: BoxDecoration(
                             color: const Color.fromARGB(196, 238, 238, 238),
                             borderRadius: BorderRadius.circular(12),
-                            border:
-                                _emailError != null
-                                    ? Border.all(color: Colors.red, width: 1.5)
-                                    : null,
+                            border: _emailError != null
+                                ? Border.all(color: Colors.red, width: 1.5)
+                                : null,
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: TextField(
@@ -212,7 +210,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               hintStyle: TextStyle(color: Colors.grey),
                             ),
                             onChanged: (value) {
-                              // Clear error when user starts typing
                               if (_emailError != null) {
                                 setState(() => _emailError = null);
                               }
@@ -258,10 +255,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: BoxDecoration(
                             color: const Color.fromARGB(196, 238, 238, 238),
                             borderRadius: BorderRadius.circular(12),
-                            border:
-                                _passwordError != null
-                                    ? Border.all(color: Colors.red, width: 1.5)
-                                    : null,
+                            border: _passwordError != null
+                                ? Border.all(color: Colors.red, width: 1.5)
+                                : null,
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: TextField(
@@ -290,7 +286,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             onChanged: (value) {
-                              // Clear error when user starts typing
                               if (_passwordError != null) {
                                 setState(() => _passwordError = null);
                               }
@@ -331,19 +326,18 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(buttonRadius),
                           ),
                         ),
-                        child:
-                            auth.isLoading
-                                ? const CircularProgressIndicator(
+                        child: auth.isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : const Text(
+                                'Sign In',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
                                   color: Colors.white,
-                                )
-                                : const Text(
-                                  'Sign In',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
                                 ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -353,32 +347,28 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: buttonWidth,
                       height: buttonHeight,
                       child: ElevatedButton(
-                        onPressed:
-                            auth.isLoading
-                                ? null
-                                : () async {
-                                  // Sign out from Google first to force account picker
-                                  await auth.signOutGoogle();
-
-                                  // Now sign in with Google
-                                  await auth.signInWithGoogle();
-                                  if (auth.isAuthenticated) {
-                                    if (!mounted) return;
-                                    Navigator.pushReplacementNamed(
-                                      context,
-                                      '/home',
-                                    );
-                                  } else {
-                                    if (!mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          auth.errorMessage ?? 'Login failed',
-                                        ),
+                        onPressed: auth.isLoading
+                            ? null
+                            : () async {
+                                await auth.signOutGoogle();
+                                await auth.signInWithGoogle();
+                                if (auth.isAuthenticated) {
+                                  if (!mounted) return;
+                                  Navigator.pushReplacementNamed(
+                                    context,
+                                    '/home',
+                                  );
+                                } else {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        auth.errorMessage ?? 'Login failed',
                                       ),
-                                    );
-                                  }
-                                },
+                                    ),
+                                  );
+                                }
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color.fromARGB(
                             255,
@@ -472,11 +462,10 @@ class _LoginScreenState extends State<LoginScreen> {
 class BackgroundLineArtPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = const Color.fromARGB(255, 5, 37, 63).withOpacity(0.08)
-          ..strokeWidth = 2.0
-          ..style = PaintingStyle.stroke;
+    final paint = Paint()
+      ..color = const Color.fromARGB(255, 5, 37, 63).withOpacity(0.08)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
 
     // Top left corner circles
     canvas.drawCircle(Offset(-50, size.height * 0.1), 80, paint);
@@ -525,10 +514,9 @@ class BackgroundLineArtPainter extends CustomPainter {
     canvas.drawPath(path4, paint);
 
     // Small dots scattered
-    final dotPaint =
-        Paint()
-          ..color = Colors.blue.withOpacity(0.1)
-          ..style = PaintingStyle.fill;
+    final dotPaint = Paint()
+      ..color = Colors.blue.withOpacity(0.1)
+      ..style = PaintingStyle.fill;
 
     canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.3), 4, dotPaint);
     canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.4), 4, dotPaint);
