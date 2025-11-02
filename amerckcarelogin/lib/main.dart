@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:amerckcarelogin/firebase_options.dart';
-import 'providers/authprovider.dart';
-import 'screens/loginscreen.dart';
-import 'screens/homescreen.dart';
-import 'screens/splashscreen.dart';
-import 'screens/signupscreen.dart';
+import 'firebase_options.dart';
+import 'config/routes.dart';
+import 'config/theme.dart';
+import 'features/auth/providers/auth_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,14 +23,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'AmerckCare Login',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.blue),
-      initialRoute: '/splash',
-      routes: {
-        '/splash': (context) => const SplashScreen(),
-        '/': (context) => const LoginScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/signup': (context) => const SignUpScreen(),
-      },
+      theme: AppTheme.lightTheme,
+      initialRoute: AppRoutes.splash,
+      routes: AppRoutes.getRoutes(),
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/authprovider.dart';
-import '../widgets/authguard.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../auth/widgets/auth_guard.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
