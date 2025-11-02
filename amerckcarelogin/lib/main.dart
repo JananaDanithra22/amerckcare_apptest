@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // <-- added
-import 'providers/authprovider.dart'; // <-- corrected
+import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:amerckcarelogin/firebase_options.dart';
+import 'providers/authprovider.dart';
 import 'screens/loginscreen.dart';
 import 'screens/homescreen.dart';
 import 'screens/splashscreen.dart';
+import 'screens/signupscreen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   runApp(
     ChangeNotifierProvider(create: (_) => AuthProvider(), child: const MyApp()),
   );
@@ -26,6 +31,7 @@ class MyApp extends StatelessWidget {
         '/splash': (context) => const SplashScreen(),
         '/': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
+        '/signup': (context) => const SignUpScreen(),
       },
     );
   }

@@ -12,7 +12,20 @@
           "package_name": "com.example.amerckcarelogin"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "958254530971-ou4eb99mjmpv2a8mc675gaptbt9et235.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.amerckcarelogin",
+            "certificate_hash": "8159065fb8878f289b21f0ddd51887a8cdad611f"
+          }
+        },
+        {
+          "client_id": "958254530971-hndtuh0ong5ob1m39f5olgli9k4ls21d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCgwX97_lXk24JXFGN4xKsj57EXhPatOjM"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "958254530971-hndtuh0ong5ob1m39f5olgli9k4ls21d.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "958254530971-f5he4h4di1pquue135aoe2i3m5ljk4b6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.amerckcarelogin"
+              }
+            }
+          ]
         }
       }
     }
