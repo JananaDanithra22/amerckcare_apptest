@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../domain/auth_provider_interface.dart';
+import 'package:amerckcarelogin/features/auth/domain/providers/email_auth_provider.dart';
+import 'package:amerckcarelogin/features/auth/domain/providers/google_auth_provider.dart'
+    as google;
 
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -25,153 +29,66 @@ class AuthProvider with ChangeNotifier {
     });
   }
 
-  /// Email/Password login with proper error handling
-  Future<void> login(String email, String password) async {
+  /// Generic authentication method (can be used for any provider in future)
+  Future<bool> _authenticate(IAuthProvider provider) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    try {
-      final credential = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-      _isAuthenticated = credential.user != null;
-      _errorMessage = null;
-    } on FirebaseAuthException catch (e) {
-      _isAuthenticated = false;
+    final result = await provider.signIn();
 
-      // Map Firebase error codes to user-friendly messages
-      switch (e.code) {
-        case 'user-not-found':
-          _errorMessage = 'user-not-found';
-          break;
-        case 'wrong-password':
-          _errorMessage = 'wrong-password';
-          break;
-        case 'invalid-credential':
-          _errorMessage = 'invalid-credential';
-          break;
-        case 'user-disabled':
-          _errorMessage = 'user-disabled';
-          break;
-        case 'invalid-email':
-          _errorMessage = 'invalid-email';
-          break;
-        case 'too-many-requests':
-          _errorMessage = 'too-many-requests';
-          break;
-        case 'network-request-failed':
-          _errorMessage = 'network error';
-          break;
-        default:
-          _errorMessage = e.code;
-      }
-
-      // Debug: Print the actual error
-      debugPrint('🔴 Firebase Auth Error: ${e.code} - ${e.message}');
-    } catch (e) {
-      _isAuthenticated = false;
-      _errorMessage = 'An unexpected error occurred';
-      debugPrint('🔴 Login Error: $e');
-    }
-
+    _isAuthenticated = result.success;
+    _errorMessage = result.error;
     _isLoading = false;
     notifyListeners();
+
+    if (result.success) {
+      debugPrint('✅ ${provider.providerName} Sign-In Successful');
+    } else {
+      debugPrint('🔴 ${provider.providerName} Sign-In Error: ${result.error}');
+    }
+
+    return result.success;
+  }
+
+  /// Email/Password login with proper error handling
+  Future<void> login(String email, String password) async {
+    final provider = EmailPasswordAuthProvider(
+      email: email,
+      password: password,
+    );
+    await _authenticate(provider);
   }
 
   /// Email/Password signup
-  Future<void> signup(String email, String password) async {
+  Future<void> signup(String emailAddress, String password) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-      _isAuthenticated = credential.user != null;
-      _errorMessage = null;
-    } on FirebaseAuthException catch (e) {
-      _isAuthenticated = false;
+    final provider = EmailPasswordAuthProvider(
+      email: emailAddress,
+      password: password,
+    );
 
-      // Map signup errors
-      switch (e.code) {
-        case 'email-already-in-use':
-          _errorMessage = 'This email is already registered';
-          break;
-        case 'weak-password':
-          _errorMessage = 'Password is too weak';
-          break;
-        case 'invalid-email':
-          _errorMessage = 'Invalid email format';
-          break;
-        case 'operation-not-allowed':
-          _errorMessage = 'Email/password accounts are not enabled';
-          break;
-        default:
-          _errorMessage = e.message ?? 'Sign up failed';
-      }
+    final result = await provider.signUp();
 
-      debugPrint('🔴 Signup Error: ${e.code} - ${e.message}');
-    } catch (e) {
-      _isAuthenticated = false;
-      _errorMessage = 'Sign up failed';
-      debugPrint('🔴 Signup Error: $e');
-    }
-
+    _isAuthenticated = result.success;
+    _errorMessage = result.error;
     _isLoading = false;
     notifyListeners();
+
+    if (result.success) {
+      debugPrint('✅ Email Sign-Up Successful');
+    } else {
+      debugPrint('🔴 Email Sign-Up Error: ${result.error}');
+    }
   }
 
   /// Google Sign-In - Force account picker every time
   Future<void> signInWithGoogle() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      // Sign out first to force account picker
-      await _googleSignIn.signOut();
-
-      // Now sign in - this will show the account picker
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
-      if (googleUser == null) {
-        // User canceled the sign-in
-        _errorMessage = 'Google sign-in cancelled';
-        _isAuthenticated = false;
-        _isLoading = false;
-        notifyListeners();
-        return;
-      }
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _auth.signInWithCredential(credential);
-      _isAuthenticated = userCredential.user != null;
-      _errorMessage = null;
-
-      debugPrint('✅ Google Sign-In Successful: ${userCredential.user?.email}');
-    } on FirebaseAuthException catch (e) {
-      _isAuthenticated = false;
-      _errorMessage = e.message ?? 'Google sign-in failed';
-      debugPrint('🔴 Google Sign-In Error: ${e.code} - ${e.message}');
-    } catch (e) {
-      _isAuthenticated = false;
-      _errorMessage = 'Google sign-in failed';
-      debugPrint('🔴 Google Sign-In Error: $e');
-    }
-
-    _isLoading = false;
-    notifyListeners();
+    final provider = google.GoogleAuthProvider();
+    await _authenticate(provider);
   }
 
   /// Sign out from Google only (used before signing in again)
