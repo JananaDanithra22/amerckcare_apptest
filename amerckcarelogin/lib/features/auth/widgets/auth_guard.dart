@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/authprovider.dart';
+import '../providers/auth_provider.dart';
 
 class AuthGuard extends StatelessWidget {
   final Widget child;
@@ -19,11 +19,7 @@ class AuthGuard extends StatelessWidget {
       });
 
       // Show loading or placeholder while redirecting
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // If authenticated → show protected widget
