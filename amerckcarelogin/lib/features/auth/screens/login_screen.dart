@@ -108,6 +108,26 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  Future<void> _loginWithFacebook(AuthProvider auth) async {
+    await auth.signInWithFacebook();
+    if (auth.isAuthenticated) {
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(auth.errorMessage ?? 'Facebook login failed')),
+      );
+    }
+  }
+
+  Future<void> _loginWithApple(AuthProvider auth) async {
+    // TODO: Implement Apple login
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Apple login coming soon')));
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
@@ -239,6 +259,66 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 24,
                         width: 24,
                       ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // "Or login with" text
+                    const Text(
+                      'or login with',
+                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Facebook and Apple login buttons row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Facebook button
+                        GestureDetector(
+                          onTap:
+                              auth.isLoading
+                                  ? null
+                                  : () => _loginWithFacebook(auth),
+                          child: Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1877F2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.facebook,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 20),
+
+                        // Apple button
+                        GestureDetector(
+                          onTap:
+                              auth.isLoading
+                                  ? null
+                                  : () => _loginWithApple(auth),
+                          child: Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.apple,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
 
                     const SizedBox(height: 16),
