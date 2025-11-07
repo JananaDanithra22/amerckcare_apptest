@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Your app name (optional) -->
+    <string name="Amerckcarelogin">YourAppName</string>
+
+    <!-- Facebook App ID -->
+    <string name="676393611924392">YOUR_FACEBOOK_APP_ID</string>
+
+    <!-- Facebook Login protocol scheme -->
+    <string name="fb676393611924392">fbYOUR_FACEBOOK_APP_ID</string>
+</resources>
