@@ -310,8 +310,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 ? null
                                 : () => _signupWithFacebook(authProvider),
                         child: Container(
-                          width: 60,
-                          height: 60,
+                          width: 50,
+                          height: 50,
                           decoration: BoxDecoration(
                             color: const Color(0xFF1877F2),
                             borderRadius: BorderRadius.circular(12),
@@ -319,7 +319,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: const Icon(
                             Icons.facebook,
                             color: Colors.white,
-                            size: 32,
+                            size: 27,
                           ),
                         ),
                       ),
@@ -333,8 +333,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 ? null
                                 : () => _signupWithApple(authProvider),
                         child: Container(
-                          width: 60,
-                          height: 60,
+                          width: 50,
+                          height: 50,
                           decoration: BoxDecoration(
                             color: Colors.black,
                             borderRadius: BorderRadius.circular(12),
@@ -342,7 +342,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: const Icon(
                             Icons.apple,
                             color: Colors.white,
-                            size: 32,
+                            size: 27,
                           ),
                         ),
                       ),
