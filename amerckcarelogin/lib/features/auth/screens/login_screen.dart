@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/background_line_art.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
+import '../../../shared/widgets/loading_overlay.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -30,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _loginEmail() async {
+  Future<void> _loginEmail() async {
     // Clear previous errors immediately
     setState(() {
       _emailError = null;
@@ -51,16 +52,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
 
-    // Attempt login
-    await auth.login(_emailCtrl.text.trim(), _passwordCtrl.text);
+    try {
+      // Show overlay while login runs
+      await GlobalOverlayController().withOverlay(
+        () async {
+          await auth.login(_emailCtrl.text.trim(), _passwordCtrl.text);
+        },
+        message: 'Signing in...',
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (auth.isAuthenticated) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      // Handle Firebase authentication errors
-      _handleLoginError(auth.errorMessage);
+      if (auth.isAuthenticated) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        // Handle Firebase authentication errors
+        _handleLoginError(auth.errorMessage);
+      }
+    } catch (e) {
+      // withOverlay already hides on exception, but show feedback
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Login failed: ${e.toString()}')));
     }
   }
 
@@ -109,22 +123,25 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loginWithFacebook(AuthProvider auth) async {
-    print('1️⃣ Starting Facebook login...');
+    try {
+      GlobalOverlayController().show('Signing in with Facebook...');
+      await auth.signInWithFacebook();
+      GlobalOverlayController().hide();
 
-    await auth.signInWithFacebook();
+      if (!mounted) return;
 
-    print('2️⃣ Facebook login completed. Auth status: ${auth.isAuthenticated}');
-    print('3️⃣ Error message: ${auth.errorMessage}');
-
-    if (!mounted) return;
-
-    if (auth.isAuthenticated) {
-      print('✅ Authenticated! Navigating to home...');
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      print('❌ Not authenticated. Error: ${auth.errorMessage}');
+      if (auth.isAuthenticated) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(auth.errorMessage ?? 'Facebook login failed')),
+        );
+      }
+    } catch (e) {
+      GlobalOverlayController().hide();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage ?? 'Facebook login failed')),
+        SnackBar(content: Text('Facebook login error: ${e.toString()}')),
       );
     }
   }
@@ -134,6 +151,31 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('heh heh, not implemented yet')),
     );
+  }
+
+  Future<void> _loginWithGoogle(AuthProvider auth) async {
+    try {
+      await GlobalOverlayController().withOverlay(() async {
+        // sign out previous Google sessions if needed
+        await auth.signOutGoogle();
+        await auth.signInWithGoogle();
+      }, message: 'Signing in with Google...');
+
+      if (!mounted) return;
+
+      if (auth.isAuthenticated) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(auth.errorMessage ?? 'Google login failed')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Google login error: ${e.toString()}')),
+      );
+    }
   }
 
   @override
@@ -250,23 +292,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Google Sign In button
                     CustomButton(
                       text: 'Sign in with Google',
-                      onPressed: () async {
-                        await auth.signOutGoogle();
-                        await auth.signInWithGoogle();
-                        if (auth.isAuthenticated) {
-                          if (!mounted) return;
-                          Navigator.pushReplacementNamed(context, '/home');
-                        } else {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                auth.errorMessage ?? 'Login failed',
-                              ),
-                            ),
-                          );
-                        }
-                      },
+                      onPressed:
+                          auth.isLoading
+                              ? null
+                              : () async {
+                                await _loginWithGoogle(auth);
+                              },
                       isLoading: auth.isLoading,
                       backgroundColor: UIConstants.darkBlue,
                       width: UIConstants.buttonWidth,
