@@ -1,7 +1,9 @@
+// lib/features/auth/providers/auth_provider.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart'; // ← ADD THIS
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import '../domain/auth_provider_interface.dart';
 import 'package:amerckcarelogin/features/auth/domain/providers/email_auth_provider.dart';
 import 'package:amerckcarelogin/features/auth/domain/providers/google_auth_provider.dart'
@@ -9,6 +11,8 @@ import 'package:amerckcarelogin/features/auth/domain/providers/google_auth_provi
 import 'package:amerckcarelogin/features/auth/domain/providers/facebook_auth_provider.dart'
     as facebook;
 
+/// AuthProvider - Only handles state management
+/// Business logic moved to AuthService
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
@@ -32,7 +36,7 @@ class AuthProvider with ChangeNotifier {
     });
   }
 
-  /// Generic authentication method (can be used for any provider in future)
+  /// Generic authentication method
   Future<bool> _authenticate(IAuthProvider provider) async {
     _isLoading = true;
     _errorMessage = null;
@@ -54,7 +58,7 @@ class AuthProvider with ChangeNotifier {
     return result.success;
   }
 
-  /// Email/Password login with proper error handling
+  /// Email/Password login
   Future<void> login(String email, String password) async {
     final provider = EmailPasswordAuthProvider(
       email: email,
@@ -88,13 +92,13 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Google Sign-In - Force account picker every time
+  /// Google Sign-In
   Future<void> signInWithGoogle() async {
     final provider = google.GoogleAuthProvider();
     await _authenticate(provider);
   }
 
-  /// Sign out from Google only (used before signing in again)
+  /// Sign out from Google only
   Future<void> signOutGoogle() async {
     try {
       await _googleSignIn.signOut();
@@ -104,19 +108,13 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // ════════════════════════════════════════════════════════
-  // ✨ NEW: Facebook Sign-In
-  // ════════════════════════════════════════════════════════
-
   /// Facebook Sign-In
   Future<void> signInWithFacebook() async {
     final provider = facebook.FacebookAuthProvider();
     await _authenticate(provider);
   }
 
-  // ════════════════════════════════════════════════════════
-
-  /// Full logout - Sign out from Firebase, Google, and Facebook
+  /// Full logout
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();
@@ -125,7 +123,7 @@ class AuthProvider with ChangeNotifier {
       await Future.wait([
         _auth.signOut(),
         _googleSignIn.signOut(),
-        FacebookAuth.instance.logOut(), // ← ADD THIS
+        FacebookAuth.instance.logOut(),
       ]);
       _isAuthenticated = false;
       _errorMessage = null;
