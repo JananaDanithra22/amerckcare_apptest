@@ -145,11 +145,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-                  const SizedBox(height: 8),
+                  // ✅ Add logo on top center
+                  Image.asset(
+                    'assets/images/signlogo.png',
+                    height: 70,
+                    width: 70,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 16),
+
                   const Text(
                     'Create account',
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
+
                   const SizedBox(height: 24),
 
                   // Email label

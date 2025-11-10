@@ -124,19 +124,16 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       print('❌ Not authenticated. Error: ${auth.errorMessage}');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(auth.errorMessage ?? 'Facebook login failed'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(auth.errorMessage ?? 'Facebook login failed')),
       );
     }
   }
 
   Future<void> _loginWithApple(AuthProvider auth) async {
     // TODO: Implement Apple login
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Apple login coming soon')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('heh heh, not implemented yet')),
+    );
   }
 
   @override
@@ -157,6 +154,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
+                    // ✅ Add logo on top center
+                    Image.asset(
+                      'assets/images/signlogo.png',
+                      height: 70, // adjust size as needed
+                      width: 70,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 16),
+
                     const Text(
                       'Sign In',
                       style: TextStyle(
@@ -164,6 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
                     const SizedBox(height: 40),
 
                     // Email label
