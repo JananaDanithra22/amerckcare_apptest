@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/utils/auth_error_parser.dart';
 import '../../../core/constants/ui_constants.dart';
 import '../providers/auth_provider.dart';
+import '../services/auth_service.dart';
 import '../widgets/background_line_art.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
-import '../../../shared/widgets/loading_overlay.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -43,7 +44,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _confirmError = null;
     });
 
-    // Validate and set errors
+    // Validate all fields
     final emailErr = Validators.validateEmail(_emailCtrl.text.trim());
     final passErr = Validators.validatePassword(_passwordCtrl.text);
     final confErr = Validators.validateConfirmPassword(
@@ -61,114 +62,63 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
+    final authService = AuthService(auth);
 
-    try {
-      await GlobalOverlayController().withOverlay(() async {
-        await auth.signup(_emailCtrl.text.trim(), _passwordCtrl.text);
-      }, message: 'Creating your account...');
+    // Use service for signup
+    final result = await authService.signupWithOverlay(
+      _emailCtrl.text.trim(),
+      _passwordCtrl.text,
+    );
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      if (auth.isAuthenticated) {
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        // Handle signup errors
-        _handleSignupError(auth.errorMessage);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign up failed: ${e.toString()}')),
-      );
-    }
-  }
-
-  void _handleSignupError(String? errorMsg) {
-    if (errorMsg == null) {
-      setState(() {
-        _passwordError = 'Sign up failed. Please try again.';
-      });
-      return;
-    }
-
-    String? emailErr;
-    String? passwordErr;
-
-    final error = errorMsg.toLowerCase();
-
-    if (error.contains('email-already-in-use') ||
-        error.contains('already in use')) {
-      emailErr = 'This email is already registered';
-    } else if (error.contains('invalid-email') ||
-        error.contains('badly formatted')) {
-      emailErr = 'Invalid email format';
-    } else if (error.contains('weak-password')) {
-      passwordErr = 'Password is too weak';
-    } else if (error.contains('network') || error.contains('connection')) {
-      passwordErr = 'Network error. Check your connection';
-    } else if (error.contains('email')) {
-      emailErr = errorMsg;
+    if (result.success) {
+      Navigator.pushReplacementNamed(context, '/home');
     } else {
-      passwordErr = errorMsg;
+      // Parse errors using utility
+      final errors = AuthErrorParser.parse(result.error);
+      setState(() {
+        _emailError = errors['email'];
+        _passwordError = errors['password'];
+      });
     }
-
-    setState(() {
-      _emailError = emailErr;
-      _passwordError = passwordErr;
-    });
   }
 
   Future<void> _signupWithGoogle(AuthProvider auth) async {
-    try {
-      await GlobalOverlayController().withOverlay(() async {
-        await auth.signOutGoogle();
-        await auth.signInWithGoogle();
-      }, message: 'Signing up with Google...');
+    final authService = AuthService(auth);
+    final result = await authService.googleSignInWithOverlay();
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      if (auth.isAuthenticated) {
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(auth.errorMessage ?? 'Google sign-up failed')),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
+    if (result.success) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Google sign-up error: ${e.toString()}')),
+        SnackBar(
+          content: Text(AuthErrorParser.getGenericMessage(result.error)),
+        ),
       );
     }
   }
 
   Future<void> _signupWithFacebook(AuthProvider auth) async {
-    try {
-      await GlobalOverlayController().withOverlay(() async {
-        await auth.signInWithFacebook();
-      }, message: 'Signing up with Facebook...');
+    final authService = AuthService(auth);
+    final result = await authService.facebookSignInWithOverlay();
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      if (auth.isAuthenticated) {
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(auth.errorMessage ?? 'Facebook sign-up failed'),
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
+    if (result.success) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Facebook sign-up error: ${e.toString()}')),
+        SnackBar(
+          content: Text(AuthErrorParser.getGenericMessage(result.error)),
+        ),
       );
     }
   }
 
   Future<void> _signupWithApple(AuthProvider auth) async {
-    // TODO: Implement Apple sign-up
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Apple sign-up coming soon')));
@@ -181,16 +131,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background with decorative line art
           CustomPaint(size: Size.infinite, painter: BackgroundLineArtPainter()),
-
-          // Main content
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-                  // Logo on top center
                   Image.asset(
                     'assets/images/signlogo.png',
                     height: 70,
@@ -198,15 +144,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     fit: BoxFit.contain,
                   ),
                   const SizedBox(height: 16),
-
                   const Text(
                     'Create account',
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Email label
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -219,8 +161,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-
-                  // Email input
                   CustomTextField(
                     controller: _emailCtrl,
                     hintText: 'Enter your email',
@@ -233,10 +173,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       }
                     },
                   ),
-
                   const SizedBox(height: 16),
-
-                  // Password label
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -249,8 +186,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-
-                  // Password input
                   CustomTextField(
                     controller: _passwordCtrl,
                     hintText: 'Enter your password',
@@ -266,10 +201,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       }
                     },
                   ),
-
                   const SizedBox(height: 16),
-
-                  // Confirm label
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -282,8 +214,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-
-                  // Confirm input
                   CustomTextField(
                     controller: _confirmCtrl,
                     hintText: 'Re-enter your password',
@@ -299,10 +229,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       }
                     },
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Sign Up button
                   CustomButton(
                     text: 'Sign Up',
                     onPressed: _signupEmail,
@@ -311,10 +238,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     height: UIConstants.buttonHeight,
                     borderRadius: UIConstants.buttonRadius,
                   ),
-
                   const SizedBox(height: 16),
-
-                  // Sign Up with Google button
                   CustomButton(
                     text: 'Sign up with Google',
                     onPressed:
@@ -329,22 +253,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       width: 24,
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
-                  // "Or sign up with" text
                   const Text(
                     'or sign up with',
                     style: TextStyle(color: Colors.black54, fontSize: 14),
                   ),
-
                   const SizedBox(height: 16),
-
-                  // Facebook and Apple login buttons row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Facebook button
                       GestureDetector(
                         onTap:
                             auth.isLoading
@@ -364,10 +281,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                         ),
                       ),
-
                       const SizedBox(width: 20),
-
-                      // Apple button
                       GestureDetector(
                         onTap:
                             auth.isLoading
@@ -389,10 +303,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 20),
-
-                  // Small link back to login
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -413,7 +324,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 24),
                 ],
               ),
