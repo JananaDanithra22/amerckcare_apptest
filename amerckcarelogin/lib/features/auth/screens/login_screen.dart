@@ -54,12 +54,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // Show overlay while login runs
-      await GlobalOverlayController().withOverlay(
-        () async {
-          await auth.login(_emailCtrl.text.trim(), _passwordCtrl.text);
-        },
-        message: 'Signing in...',
-      );
+      await GlobalOverlayController().withOverlay(() async {
+        await auth.login(_emailCtrl.text.trim(), _passwordCtrl.text);
+      }, message: 'Signing in...');
 
       if (!mounted) return;
 
@@ -280,7 +277,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     CustomButton(
                       text: 'Sign In',
                       onPressed: _loginEmail,
-                      isLoading: auth.isLoading,
                       backgroundColor: UIConstants.primaryBlue,
                       width: UIConstants.buttonWidth,
                       height: UIConstants.buttonHeight,
@@ -298,7 +294,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               : () async {
                                 await _loginWithGoogle(auth);
                               },
-                      isLoading: auth.isLoading,
                       backgroundColor: UIConstants.darkBlue,
                       width: UIConstants.buttonWidth,
                       height: UIConstants.buttonHeight,

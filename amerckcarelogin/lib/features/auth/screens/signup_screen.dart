@@ -306,7 +306,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   CustomButton(
                     text: 'Sign Up',
                     onPressed: _signupEmail,
-                    isLoading: auth.isLoading,
                     backgroundColor: UIConstants.primaryBlue,
                     width: UIConstants.buttonWidth,
                     height: UIConstants.buttonHeight,
@@ -320,7 +319,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     text: 'Sign up with Google',
                     onPressed:
                         auth.isLoading ? null : () => _signupWithGoogle(auth),
-                    isLoading: auth.isLoading,
                     backgroundColor: UIConstants.darkBlue,
                     width: UIConstants.buttonWidth,
                     height: UIConstants.buttonHeight,
