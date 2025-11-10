@@ -32,6 +32,9 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-analytics")
+    implementation("com.facebook.android:facebook-android-sdk:18.1.3")
+
+
 }
 repositories {
     google()

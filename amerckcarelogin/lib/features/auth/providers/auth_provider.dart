@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart'; // ← ADD THIS
 import '../domain/auth_provider_interface.dart';
 import 'package:amerckcarelogin/features/auth/domain/providers/email_auth_provider.dart';
 import 'package:amerckcarelogin/features/auth/domain/providers/google_auth_provider.dart'
     as google;
+import 'package:amerckcarelogin/features/auth/domain/providers/facebook_auth_provider.dart'
+    as facebook;
 
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -101,13 +104,29 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Full logout - Sign out from both Firebase and Google
+  // ════════════════════════════════════════════════════════
+  // ✨ NEW: Facebook Sign-In
+  // ════════════════════════════════════════════════════════
+
+  /// Facebook Sign-In
+  Future<void> signInWithFacebook() async {
+    final provider = facebook.FacebookAuthProvider();
+    await _authenticate(provider);
+  }
+
+  // ════════════════════════════════════════════════════════
+
+  /// Full logout - Sign out from Firebase, Google, and Facebook
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
+      await Future.wait([
+        _auth.signOut(),
+        _googleSignIn.signOut(),
+        FacebookAuth.instance.logOut(), // ← ADD THIS
+      ]);
       _isAuthenticated = false;
       _errorMessage = null;
       debugPrint('✅ Logout Successful');

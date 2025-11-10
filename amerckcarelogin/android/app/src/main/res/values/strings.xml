@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Replace the values below with your real Facebook App ID and client token -->
+    <string name="facebook_app_id">676393611924392</string>
+    <string name="fb_login_protocol_scheme">fb676393611924392</string>
+    <string name="facebook_client_token">5ffb2f495ead8a40402f0ab32003eded</string>
+
+    <!-- Your app name -->
+    <string name="app_name">amerckcarelogin</string>
+</resources>
