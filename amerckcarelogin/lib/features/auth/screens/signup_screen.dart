@@ -97,22 +97,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _signupWithFacebook(AuthProvider authProvider) async {
-    print('1️⃣ Starting Facebook signup...');
-
     await authProvider.signInWithFacebook();
-
-    print(
-      '2️⃣ Facebook signup completed. Auth status: ${authProvider.isAuthenticated}',
-    );
-    print('3️⃣ Error message: ${authProvider.errorMessage}');
 
     if (!mounted) return;
 
     if (authProvider.isAuthenticated) {
-      print('✅ Authenticated! Navigating to home...');
       Navigator.pushReplacementNamed(context, '/home');
     } else {
-      print('❌ Not authenticated. Error: ${authProvider.errorMessage}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authProvider.errorMessage ?? 'Facebook sign-up failed'),
@@ -122,11 +113,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  Future<void> _signupWithApple(AuthProvider authProvider) async {
-    // TODO: Implement Apple sign-up
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Apple sign-up coming soon')));
+  Future<void> _signupWithMicrosoft(AuthProvider authProvider) async {
+    await authProvider.signInWithMicrosoft();
+
+    if (!mounted) return;
+
+    if (authProvider.isAuthenticated) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            authProvider.errorMessage ?? 'Microsoft sign-up failed',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -282,7 +285,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                   const SizedBox(height: 24),
 
-                  // "Or login with" text
+                  // "Or sign up with" text
                   const Text(
                     'or sign up with',
                     style: TextStyle(color: Colors.black54, fontSize: 14),
@@ -290,7 +293,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Facebook and Apple login buttons row
+                  // Facebook and Microsoft login buttons row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -317,21 +320,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                       const SizedBox(width: 20),
 
-                      // Apple button
+                      // Microsoft button (FREE alternative to Apple!)
                       GestureDetector(
                         onTap:
                             authProvider.isLoading
                                 ? null
-                                : () => _signupWithApple(authProvider),
+                                : () => _signupWithMicrosoft(authProvider),
                         child: Container(
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: Colors.black,
+                            color: const Color(0xFF00A4EF), // Microsoft blue
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
-                            Icons.apple,
+                            Icons.window, // Microsoft Windows icon
                             color: Colors.white,
                             size: 32,
                           ),

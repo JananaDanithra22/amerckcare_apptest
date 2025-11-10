@@ -109,20 +109,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loginWithFacebook(AuthProvider auth) async {
-    print('1️⃣ Starting Facebook login...');
-
     await auth.signInWithFacebook();
-
-    print('2️⃣ Facebook login completed. Auth status: ${auth.isAuthenticated}');
-    print('3️⃣ Error message: ${auth.errorMessage}');
 
     if (!mounted) return;
 
     if (auth.isAuthenticated) {
-      print('✅ Authenticated! Navigating to home...');
       Navigator.pushReplacementNamed(context, '/home');
     } else {
-      print('❌ Not authenticated. Error: ${auth.errorMessage}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(auth.errorMessage ?? 'Facebook login failed'),
@@ -132,11 +125,26 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _loginWithApple(AuthProvider auth) async {
-    // TODO: Implement Apple login
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Apple login coming soon')));
+  Future<void> _loginWithMicrosoft(AuthProvider auth) async {
+    debugPrint('🔵 LoginScreen: Microsoft button pressed');
+
+    await auth.signInWithMicrosoft();
+
+    if (!mounted) return;
+
+    if (auth.isAuthenticated) {
+      debugPrint('✅ LoginScreen: Navigation to home');
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      debugPrint('🔴 LoginScreen: Microsoft login failed');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(auth.errorMessage ?? 'Microsoft login failed'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
   @override
@@ -282,7 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 16),
 
-                    // Facebook and Apple login buttons row
+                    // Facebook and Microsoft login buttons row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -309,21 +317,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(width: 20),
 
-                        // Apple button
+                        // Microsoft button (FREE alternative to Apple!)
                         GestureDetector(
                           onTap:
                               auth.isLoading
                                   ? null
-                                  : () => _loginWithApple(auth),
+                                  : () => _loginWithMicrosoft(auth),
                           child: Container(
                             width: 60,
                             height: 60,
                             decoration: BoxDecoration(
-                              color: Colors.black,
+                              color: const Color(0xFF00A4EF), // Microsoft blue
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
-                              Icons.apple,
+                              Icons.window, // Microsoft Windows icon
                               color: Colors.white,
                               size: 32,
                             ),

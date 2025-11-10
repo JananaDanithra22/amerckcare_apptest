@@ -15,6 +15,7 @@ dependencies:
   firebase_auth: ^5.7.0
   google_sign_in: ^6.2.0
   flutter_facebook_auth: ^6.0.3   
+  aad_oauth: ^1.0.1
 
 
 

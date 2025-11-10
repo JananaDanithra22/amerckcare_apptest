@@ -5,6 +5,7 @@ import 'firebase_options.dart';
 import 'config/routes.dart';
 import 'config/theme.dart';
 import 'features/auth/providers/auth_provider.dart';
+import 'features/auth/domain/providers/microsoft_auth_provider.dart'; // ← Add this import
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: MicrosoftAuthProvider.navigatorKey, // ← Add this line
       title: 'AmerckCare Login',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,

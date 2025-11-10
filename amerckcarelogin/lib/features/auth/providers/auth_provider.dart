@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart'; // ← ADD THIS
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import '../domain/auth_provider_interface.dart';
-import 'package:amerckcarelogin/features/auth/domain/providers/email_auth_provider.dart';
-import 'package:amerckcarelogin/features/auth/domain/providers/google_auth_provider.dart'
-    as google;
-import 'package:amerckcarelogin/features/auth/domain/providers/facebook_auth_provider.dart'
-    as facebook;
+import '../domain/providers/email_auth_provider.dart';
+import '../domain/providers/google_auth_provider.dart' as google;
+import '../domain/providers/facebook_auth_provider.dart' as facebook;
+import '../domain/providers/microsoft_auth_provider.dart' as microsoft;
 
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -32,29 +31,40 @@ class AuthProvider with ChangeNotifier {
     });
   }
 
-  /// Generic authentication method (can be used for any provider in future)
+  /// Generic authentication method
   Future<bool> _authenticate(IAuthProvider provider) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    final result = await provider.signIn();
+    try {
+      final result = await provider.signIn();
 
-    _isAuthenticated = result.success;
-    _errorMessage = result.error;
-    _isLoading = false;
-    notifyListeners();
+      _isAuthenticated = result.success;
+      _errorMessage = result.error;
 
-    if (result.success) {
-      debugPrint('✅ ${provider.providerName} Sign-In Successful');
-    } else {
-      debugPrint('🔴 ${provider.providerName} Sign-In Error: ${result.error}');
+      if (result.success) {
+        debugPrint('✅ ${provider.providerName} Sign-In Successful');
+      } else {
+        debugPrint(
+          '🔴 ${provider.providerName} Sign-In Error: ${result.error}',
+        );
+      }
+
+      return result.success;
+    } catch (e) {
+      _isAuthenticated = false;
+      _errorMessage =
+          '${provider.providerName} sign-in failed: ${e.toString()}';
+      debugPrint('🔴 ${provider.providerName} Exception: $e');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    return result.success;
   }
 
-  /// Email/Password login with proper error handling
+  /// Email/Password login
   Future<void> login(String email, String password) async {
     final provider = EmailPasswordAuthProvider(
       email: email,
@@ -69,32 +79,39 @@ class AuthProvider with ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final provider = EmailPasswordAuthProvider(
-      email: emailAddress,
-      password: password,
-    );
+    try {
+      final provider = EmailPasswordAuthProvider(
+        email: emailAddress,
+        password: password,
+      );
 
-    final result = await provider.signUp();
+      final result = await provider.signUp();
 
-    _isAuthenticated = result.success;
-    _errorMessage = result.error;
-    _isLoading = false;
-    notifyListeners();
+      _isAuthenticated = result.success;
+      _errorMessage = result.error;
 
-    if (result.success) {
-      debugPrint('✅ Email Sign-Up Successful');
-    } else {
-      debugPrint('🔴 Email Sign-Up Error: ${result.error}');
+      if (result.success) {
+        debugPrint('✅ Email Sign-Up Successful');
+      } else {
+        debugPrint('🔴 Email Sign-Up Error: ${result.error}');
+      }
+    } catch (e) {
+      _isAuthenticated = false;
+      _errorMessage = 'Sign up failed: ${e.toString()}';
+      debugPrint('🔴 Signup Exception: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  /// Google Sign-In - Force account picker every time
+  /// Google Sign-In
   Future<void> signInWithGoogle() async {
     final provider = google.GoogleAuthProvider();
     await _authenticate(provider);
   }
 
-  /// Sign out from Google only (used before signing in again)
+  /// Sign out from Google only
   Future<void> signOutGoogle() async {
     try {
       await _googleSignIn.signOut();
@@ -104,19 +121,21 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // ════════════════════════════════════════════════════════
-  // ✨ NEW: Facebook Sign-In
-  // ════════════════════════════════════════════════════════
-
   /// Facebook Sign-In
   Future<void> signInWithFacebook() async {
     final provider = facebook.FacebookAuthProvider();
     await _authenticate(provider);
   }
 
-  // ════════════════════════════════════════════════════════
+  /// Microsoft Sign-In (FIXED - No longer empty!)
+  Future<void> signInWithMicrosoft() async {
+    debugPrint('🔵 AuthProvider: Starting Microsoft sign-in...');
+    final provider = microsoft.MicrosoftAuthProvider();
+    final success = await _authenticate(provider);
+    debugPrint('🔵 AuthProvider: Microsoft sign-in completed: $success');
+  }
 
-  /// Full logout - Sign out from Firebase, Google, and Facebook
+  /// Full logout - Sign out from all providers
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();
@@ -125,7 +144,7 @@ class AuthProvider with ChangeNotifier {
       await Future.wait([
         _auth.signOut(),
         _googleSignIn.signOut(),
-        FacebookAuth.instance.logOut(), // ← ADD THIS
+        FacebookAuth.instance.logOut(),
       ]);
       _isAuthenticated = false;
       _errorMessage = null;
@@ -133,19 +152,15 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Logout failed';
       debugPrint('🔴 Logout Error: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 
   /// Check if user is currently signed in
-  bool isUserSignedIn() {
-    return _auth.currentUser != null;
-  }
+  bool isUserSignedIn() => _auth.currentUser != null;
 
   /// Get current user's email
-  String? getCurrentUserEmail() {
-    return _auth.currentUser?.email;
-  }
+  String? getCurrentUserEmail() => _auth.currentUser?.email;
 }
