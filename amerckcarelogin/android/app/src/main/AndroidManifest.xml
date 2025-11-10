@@ -15,15 +15,36 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
-            
+
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
-            
+
+            <!-- Launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Microsoft msauth redirect handler -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <!-- exact match: scheme + host + path (path includes trailing = if present) -->
+                <data
+                    android:scheme="msauth"
+                    android:host="com.example.amerckcarelogin"
+                    android:path="/gVkGX7iHjyibIfDd1RiHqM2tYR8="/>
+
+                <!-- fallback prefix match without trailing '=' -->
+                <data
+                    android:scheme="msauth"
+                    android:host="com.example.amerckcarelogin"
+                    android:pathPrefix="/gVkGX7iHjyibIfDd1RiHqM2tYR8" />
+            </intent-filter>
+
         </activity>
 
         <!-- ✅ Facebook Login Configuration -->
@@ -64,7 +85,7 @@
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
-        
+
         <!-- Facebook Package Visibility -->
         <package android:name="com.facebook.katana" />
         <package android:name="com.facebook.orca" />

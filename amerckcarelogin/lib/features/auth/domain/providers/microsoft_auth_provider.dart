@@ -10,7 +10,8 @@ class MicrosoftAuthProvider implements IAuthProvider {
 
   // Your actual Azure AD credentials
   static const String _clientId = 'b872fd81-82b0-440c-b020-a0e0f57f3648';
-  static const String _tenantId = '9486ac65-39d3-4d25-977c-76d9c31c0046';
+  // Use 'common' for multi-tenant (personal + work/school accounts)
+  static const String _tenantId = 'common';
   static const String _redirectUri =
       'msauth://com.example.amerckcarelogin/gVkGX7iHjyibIfDd1RiHqM2tYR8%3D';
 
@@ -67,10 +68,10 @@ class MicrosoftAuthProvider implements IAuthProvider {
       await _oauth.login();
       debugPrint('🔵 Microsoft OAuth login completed');
 
-      final accessToken = await _oauth.getAccessToken();
-      debugPrint('🔵 Access token retrieved: ${accessToken != null}');
+      String? rawAccessToken = await _oauth.getAccessToken();
+      debugPrint('🔵 Raw access token retrieved: ${rawAccessToken != null}');
 
-      if (accessToken == null || accessToken.isEmpty) {
+      if (rawAccessToken == null || rawAccessToken.isEmpty) {
         debugPrint('🔴 Microsoft: No access token received');
         return AuthResult(
           success: false,
@@ -78,12 +79,72 @@ class MicrosoftAuthProvider implements IAuthProvider {
         );
       }
 
-      debugPrint('✅ Microsoft access token obtained');
+      // Extract the actual token from the URL if needed
+      String? accessToken = _extractTokenFromUrl(rawAccessToken);
 
-      // Step 2: Create Microsoft credential for Firebase
+      // If extraction returned a URL, try to get access_token from it
+      if (accessToken != null && accessToken.startsWith('http')) {
+        final uri = Uri.parse(accessToken);
+        accessToken =
+            uri.queryParameters['access_token'] ??
+            Uri.splitQueryString(uri.fragment)['access_token'];
+      }
+
+      if (accessToken == null || accessToken.isEmpty) {
+        debugPrint('🔴 Microsoft: Failed to extract access token');
+        return AuthResult(
+          success: false,
+          error:
+              'Microsoft authentication failed - invalid access token format',
+        );
+      }
+
+      debugPrint(
+        '✅ Microsoft access token extracted: ${accessToken.substring(0, 20)}...',
+      );
+
+      // CRITICAL FIX: Get the ID token (not just access token)
+      String? rawIdToken = await _oauth.getIdToken();
+      debugPrint('🔵 Raw ID token retrieved: ${rawIdToken != null}');
+
+      if (rawIdToken == null || rawIdToken.isEmpty) {
+        debugPrint('🔴 Microsoft: No ID token received');
+        return AuthResult(
+          success: false,
+          error: 'Microsoft authentication failed - no ID token',
+        );
+      }
+
+      // Extract the actual token from the URL if it's a redirect URL
+      String? idToken = _extractTokenFromUrl(rawIdToken);
+
+      // If extraction returned a URL, try to get id_token from it
+      if (idToken != null && idToken.startsWith('http')) {
+        final uri = Uri.parse(idToken);
+        idToken =
+            uri.queryParameters['id_token'] ??
+            Uri.splitQueryString(uri.fragment)['id_token'];
+      }
+
+      if (idToken == null || idToken.isEmpty) {
+        debugPrint('🔴 Microsoft: Failed to extract ID token from response');
+        return AuthResult(
+          success: false,
+          error: 'Microsoft authentication failed - invalid ID token format',
+        );
+      }
+
+      debugPrint(
+        '✅ Microsoft ID token extracted: ${idToken.substring(0, 20)}...',
+      );
+
+      // Step 2: Create Microsoft credential for Firebase with BOTH tokens
       final OAuthCredential credential = OAuthProvider(
         'microsoft.com',
-      ).credential(accessToken: accessToken);
+      ).credential(
+        accessToken: accessToken,
+        idToken: idToken, // THIS IS THE KEY FIX!
+      );
 
       debugPrint('🔵 Created Microsoft credential for Firebase');
 
@@ -124,6 +185,19 @@ class MicrosoftAuthProvider implements IAuthProvider {
     } catch (e) {
       debugPrint('🔴 Microsoft Sign-Out Error: $e');
     }
+  }
+
+  /// Extracts the token from a URL string if present
+  /// Handles cases where aad_oauth returns a full redirect URL instead of just the token
+  String? _extractTokenFromUrl(String tokenOrUrl) {
+    // If it doesn't look like a URL, return as-is
+    if (!tokenOrUrl.startsWith('http')) {
+      return tokenOrUrl;
+    }
+
+    // If it's a URL, return it for further processing
+    // The caller will extract the specific token they need
+    return tokenOrUrl;
   }
 
   /// Handles Firebase authentication errors
