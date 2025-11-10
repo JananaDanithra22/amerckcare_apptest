@@ -97,16 +97,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _signupWithFacebook(AuthProvider authProvider) async {
+    print('1️⃣ Starting Facebook signup...');
+
     await authProvider.signInWithFacebook();
 
+    print(
+      '2️⃣ Facebook signup completed. Auth status: ${authProvider.isAuthenticated}',
+    );
+    print('3️⃣ Error message: ${authProvider.errorMessage}');
+
+    if (!mounted) return;
+
     if (authProvider.isAuthenticated) {
-      if (!mounted) return;
+      print('✅ Authenticated! Navigating to home...');
       Navigator.pushReplacementNamed(context, '/home');
     } else {
-      if (!mounted) return;
+      print('❌ Not authenticated. Error: ${authProvider.errorMessage}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authProvider.errorMessage ?? 'Facebook sign-up failed'),
+          backgroundColor: Colors.red,
         ),
       );
     }

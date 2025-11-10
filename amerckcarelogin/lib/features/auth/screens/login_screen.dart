@@ -109,14 +109,25 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loginWithFacebook(AuthProvider auth) async {
+    print('1️⃣ Starting Facebook login...');
+
     await auth.signInWithFacebook();
+
+    print('2️⃣ Facebook login completed. Auth status: ${auth.isAuthenticated}');
+    print('3️⃣ Error message: ${auth.errorMessage}');
+
+    if (!mounted) return;
+
     if (auth.isAuthenticated) {
-      if (!mounted) return;
+      print('✅ Authenticated! Navigating to home...');
       Navigator.pushReplacementNamed(context, '/home');
     } else {
-      if (!mounted) return;
+      print('❌ Not authenticated. Error: ${auth.errorMessage}');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage ?? 'Facebook login failed')),
+        SnackBar(
+          content: Text(auth.errorMessage ?? 'Facebook login failed'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
