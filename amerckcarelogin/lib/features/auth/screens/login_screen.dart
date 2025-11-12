@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loginWithApple(AuthProvider auth) async {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Apple login coming soon')));
+    ).showSnackBar(const SnackBar(content: Text('heh heh,to be implemented ')));
   }
 
   @override
