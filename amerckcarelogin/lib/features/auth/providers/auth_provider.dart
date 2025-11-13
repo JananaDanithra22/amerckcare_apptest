@@ -10,12 +10,15 @@ import 'package:amerckcarelogin/features/auth/domain/providers/google_auth_provi
     as google;
 import 'package:amerckcarelogin/features/auth/domain/providers/facebook_auth_provider.dart'
     as facebook;
+import '../services/biometric_service.dart'; // <-- Import
 
 /// AuthProvider - Only handles state management
 /// Business logic moved to AuthService
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final BiometricService _biometricService =
+      BiometricService(); // <-- Biometric
 
   bool _isAuthenticated = false;
   bool get isAuthenticated => _isAuthenticated;
@@ -59,16 +62,33 @@ class AuthProvider with ChangeNotifier {
   }
 
   /// Email/Password login
-  Future<void> login(String email, String password) async {
+  Future<void> login(
+    String email,
+    String password, {
+    bool enableBiometric = false,
+  }) async {
     final provider = EmailPasswordAuthProvider(
       email: email,
       password: password,
     );
-    await _authenticate(provider);
+    final success = await _authenticate(provider);
+
+    // Enable biometric login if user opts in
+    if (success && enableBiometric) {
+      try {
+        await _biometricService.enableBiometric(email, password);
+      } catch (e) {
+        debugPrint('🔴 Error enabling biometric: $e');
+      }
+    }
   }
 
   /// Email/Password signup
-  Future<void> signup(String emailAddress, String password) async {
+  Future<void> signup(
+    String emailAddress,
+    String password, {
+    bool enableBiometric = false,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -87,9 +107,39 @@ class AuthProvider with ChangeNotifier {
 
     if (result.success) {
       debugPrint('✅ Email Sign-Up Successful');
+      // Enable biometric login after signup if user opts in
+      if (enableBiometric) {
+        try {
+          await _biometricService.enableBiometric(emailAddress, password);
+        } catch (e) {
+          debugPrint('🔴 Error enabling biometric: $e');
+        }
+      }
     } else {
       debugPrint('🔴 Email Sign-Up Error: ${result.error}');
     }
+  }
+
+  /// Biometric login (email/password stored securely)
+  Future<bool> loginWithBiometrics() async {
+    final isEnabled = await _biometricService.isBiometricEnabled();
+    if (!isEnabled) return false;
+
+    final credentials = await _biometricService.getStoredCredentials();
+    if (credentials == null) return false;
+
+    // Authenticate via biometrics
+    final authenticated = await _biometricService.authenticate();
+    if (!authenticated) return false;
+
+    final email = credentials['email']!;
+    final password = credentials['password']!;
+
+    await login(
+      email,
+      password,
+    ); // Reuse login method (without re-enabling biometric)
+    return _isAuthenticated;
   }
 
   /// Google Sign-In
@@ -124,6 +174,7 @@ class AuthProvider with ChangeNotifier {
         _auth.signOut(),
         _googleSignIn.signOut(),
         FacebookAuth.instance.logOut(),
+        _biometricService.clearAll(), // <-- Clear biometric on logout
       ]);
       _isAuthenticated = false;
       _errorMessage = null;
