@@ -5,6 +5,7 @@ import '../../../core/utils/auth_error_parser.dart';
 import '../../../core/constants/ui_constants.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
+import '../services/biometric_service.dart'; // <-- Added
 import '../widgets/background_line_art.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
@@ -25,11 +26,43 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _emailError;
   String? _passwordError;
 
+  final BiometricService _biometricService =
+      BiometricService(); // <-- Biometric
+
+  @override
+  void initState() {
+    super.initState();
+    // Try biometric login on app start
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _tryBiometricLogin();
+    });
+  }
+
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _tryBiometricLogin() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final canUseBiometrics = await _biometricService.isBiometricEnabled();
+
+    if (canUseBiometrics) {
+      final credentials = await _biometricService.getStoredCredentials();
+      if (credentials != null) {
+        final authenticated = await _biometricService.authenticate(
+          reason: 'Authenticate to login',
+        );
+        if (authenticated) {
+          await auth.login(credentials['email']!, credentials['password']!);
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/home');
+          }
+        }
+      }
+    }
   }
 
   Future<void> _loginEmail() async {
@@ -63,6 +96,43 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result.success) {
+      // Prompt user to enable biometrics if supported
+      final isBiometricAvailable =
+          await _biometricService.isBiometricAvailable();
+      if (isBiometricAvailable) {
+        final enable = await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text('Enable Biometric Login?'),
+                content: const Text(
+                  'You can use fingerprint/Face ID for faster login next time.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('No'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Yes'),
+                  ),
+                ],
+              ),
+        );
+
+        if (enable == true) {
+          try {
+            await _biometricService.enableBiometric(
+              _emailCtrl.text.trim(),
+              _passwordCtrl.text,
+            );
+          } catch (e) {
+            debugPrint('🔴 Error enabling biometric: $e');
+          }
+        }
+      }
+
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       // Parse errors using utility
