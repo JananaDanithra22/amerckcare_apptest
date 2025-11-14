@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/utils/auth_error_parser.dart';
 import '../../../core/constants/ui_constants.dart';
 import '../providers/auth_provider.dart';
+import '../services/auth_service.dart';
 import '../widgets/background_line_art.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
@@ -26,8 +28,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String? _passwordError;
   String? _confirmError;
 
-  bool _isLoading = false;
-
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -37,93 +37,88 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _signupEmail() async {
-    // Validate and set errors
-    final emailErr = Validators.validateEmail(_emailCtrl.text);
+    // Clear previous errors
+    setState(() {
+      _emailError = null;
+      _passwordError = null;
+      _confirmError = null;
+    });
+
+    // Validate all fields
+    final emailErr = Validators.validateEmail(_emailCtrl.text.trim());
     final passErr = Validators.validatePassword(_passwordCtrl.text);
     final confErr = Validators.validateConfirmPassword(
       _passwordCtrl.text,
       _confirmCtrl.text,
     );
 
-    setState(() {
-      _emailError = emailErr;
-      _passwordError = passErr;
-      _confirmError = confErr;
-    });
-
-    if (_emailError != null ||
-        _passwordError != null ||
-        _confirmError != null) {
+    if (emailErr != null || passErr != null || confErr != null) {
+      setState(() {
+        _emailError = emailErr;
+        _passwordError = passErr;
+        _confirmError = confErr;
+      });
       return;
     }
 
-    setState(() => _isLoading = true);
-
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    await auth.signup(_emailCtrl.text.trim(), _passwordCtrl.text);
+    final authService = AuthService(auth);
 
-    if (!mounted) return;
-
-    if (auth.isAuthenticated) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      // Handle signup errors
-      if (auth.errorMessage != null) {
-        if (auth.errorMessage!.toLowerCase().contains('email')) {
-          setState(() => _emailError = auth.errorMessage);
-        } else {
-          setState(() => _passwordError = auth.errorMessage);
-        }
-      }
-    }
-
-    setState(() => _isLoading = false);
-  }
-
-  Future<void> _signupWithGoogle(AuthProvider authProvider) async {
-    await authProvider.signInWithGoogle();
-
-    if (authProvider.isAuthenticated) {
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.errorMessage ?? 'Google sign-up failed'),
-        ),
-      );
-    }
-  }
-
-  Future<void> _signupWithFacebook(AuthProvider authProvider) async {
-    print('1️⃣ Starting Facebook signup...');
-
-    await authProvider.signInWithFacebook();
-
-    print(
-      '2️⃣ Facebook signup completed. Auth status: ${authProvider.isAuthenticated}',
+    // Use service for signup
+    final result = await authService.signupWithOverlay(
+      _emailCtrl.text.trim(),
+      _passwordCtrl.text,
     );
-    print('3️⃣ Error message: ${authProvider.errorMessage}');
 
     if (!mounted) return;
 
-    if (authProvider.isAuthenticated) {
-      print('✅ Authenticated! Navigating to home...');
+    if (result.success) {
       Navigator.pushReplacementNamed(context, '/home');
     } else {
-      print('❌ Not authenticated. Error: ${authProvider.errorMessage}');
+      // Parse errors using utility
+      final errors = AuthErrorParser.parse(result.error);
+      setState(() {
+        _emailError = errors['email'];
+        _passwordError = errors['password'];
+      });
+    }
+  }
+
+  Future<void> _signupWithGoogle(AuthProvider auth) async {
+    final authService = AuthService(auth);
+    final result = await authService.googleSignInWithOverlay();
+
+    if (!mounted) return;
+
+    if (result.success) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authProvider.errorMessage ?? 'Facebook sign-up failed'),
-          backgroundColor: Colors.red,
+          content: Text(AuthErrorParser.getGenericMessage(result.error)),
         ),
       );
     }
   }
 
-  Future<void> _signupWithApple(AuthProvider authProvider) async {
-    // TODO: Implement Apple sign-up
+  Future<void> _signupWithFacebook(AuthProvider auth) async {
+    final authService = AuthService(auth);
+    final result = await authService.facebookSignInWithOverlay();
+
+    if (!mounted) return;
+
+    if (result.success) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AuthErrorParser.getGenericMessage(result.error)),
+        ),
+      );
+    }
+  }
+
+  Future<void> _signupWithApple(AuthProvider auth) async {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Apple sign-up coming soon')));
@@ -131,28 +126,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
+    final auth = Provider.of<AuthProvider>(context);
 
     return Scaffold(
       body: Stack(
         children: [
-          // Background with decorative line art
           CustomPaint(size: Size.infinite, painter: BackgroundLineArtPainter()),
-
-          // Main content
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-                  const SizedBox(height: 8),
+                  Image.asset(
+                    'assets/images/signlogo.png',
+                    height: 70,
+                    width: 70,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 16),
                   const Text(
                     'Create account',
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 24),
-
-                  // Email label
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -165,8 +161,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-
-                  // Email input
                   CustomTextField(
                     controller: _emailCtrl,
                     hintText: 'Enter your email',
@@ -179,10 +173,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       }
                     },
                   ),
-
                   const SizedBox(height: 16),
-
-                  // Password label
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -195,8 +186,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-
-                  // Password input
                   CustomTextField(
                     controller: _passwordCtrl,
                     hintText: 'Enter your password',
@@ -212,10 +201,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       }
                     },
                   ),
-
                   const SizedBox(height: 16),
-
-                  // Confirm label
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -228,8 +214,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-
-                  // Confirm input
                   CustomTextField(
                     controller: _confirmCtrl,
                     hintText: 'Re-enter your password',
@@ -245,30 +229,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       }
                     },
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Sign Up button
                   CustomButton(
                     text: 'Sign Up',
                     onPressed: _signupEmail,
-                    isLoading: _isLoading,
                     backgroundColor: UIConstants.primaryBlue,
                     width: UIConstants.buttonWidth,
                     height: UIConstants.buttonHeight,
                     borderRadius: UIConstants.buttonRadius,
                   ),
-
                   const SizedBox(height: 16),
-
-                  // Sign Up with Google button
                   CustomButton(
                     text: 'Sign up with Google',
                     onPressed:
-                        authProvider.isLoading
-                            ? null
-                            : () => _signupWithGoogle(authProvider),
-                    isLoading: authProvider.isLoading,
+                        auth.isLoading ? null : () => _signupWithGoogle(auth),
                     backgroundColor: UIConstants.darkBlue,
                     width: UIConstants.buttonWidth,
                     height: UIConstants.buttonHeight,
@@ -279,30 +253,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       width: 24,
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
-                  // "Or login with" text
                   const Text(
                     'or sign up with',
                     style: TextStyle(color: Colors.black54, fontSize: 14),
                   ),
-
                   const SizedBox(height: 16),
-
-                  // Facebook and Apple login buttons row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Facebook button
                       GestureDetector(
                         onTap:
-                            authProvider.isLoading
+                            auth.isLoading
                                 ? null
-                                : () => _signupWithFacebook(authProvider),
+                                : () => _signupWithFacebook(auth),
                         child: Container(
-                          width: 60,
-                          height: 60,
+                          width: 50,
+                          height: 50,
                           decoration: BoxDecoration(
                             color: const Color(0xFF1877F2),
                             borderRadius: BorderRadius.circular(12),
@@ -310,22 +277,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: const Icon(
                             Icons.facebook,
                             color: Colors.white,
-                            size: 32,
+                            size: 27,
                           ),
                         ),
                       ),
-
                       const SizedBox(width: 20),
-
-                      // Apple button
                       GestureDetector(
                         onTap:
-                            authProvider.isLoading
+                            auth.isLoading
                                 ? null
-                                : () => _signupWithApple(authProvider),
+                                : () => _signupWithApple(auth),
                         child: Container(
-                          width: 60,
-                          height: 60,
+                          width: 50,
+                          height: 50,
                           decoration: BoxDecoration(
                             color: Colors.black,
                             borderRadius: BorderRadius.circular(12),
@@ -333,16 +297,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: const Icon(
                             Icons.apple,
                             color: Colors.white,
-                            size: 32,
+                            size: 27,
                           ),
                         ),
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 20),
-
-                  // Small link back to login
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -363,7 +324,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 24),
                 ],
               ),

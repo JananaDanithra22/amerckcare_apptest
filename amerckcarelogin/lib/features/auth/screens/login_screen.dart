@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/utils/auth_error_parser.dart';
 import '../../../core/constants/ui_constants.dart';
 import '../providers/auth_provider.dart';
+import '../services/auth_service.dart';
 import '../widgets/background_line_art.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
@@ -30,14 +32,14 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _loginEmail() async {
-    // Clear previous errors immediately
+  Future<void> _loginEmail() async {
+    // Clear previous errors
     setState(() {
       _emailError = null;
       _passwordError = null;
     });
 
-    // Validate fields locally first
+    // Validate fields
     final emailValidation = Validators.validateEmail(_emailCtrl.text.trim());
     final passwordValidation = Validators.validatePassword(_passwordCtrl.text);
 
@@ -50,93 +52,66 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
+    final authService = AuthService(auth);
 
-    // Attempt login
-    await auth.login(_emailCtrl.text.trim(), _passwordCtrl.text);
+    // Use service for login
+    final result = await authService.loginWithOverlay(
+      _emailCtrl.text.trim(),
+      _passwordCtrl.text,
+    );
 
     if (!mounted) return;
 
-    if (auth.isAuthenticated) {
+    if (result.success) {
       Navigator.pushReplacementNamed(context, '/home');
     } else {
-      // Handle Firebase authentication errors
-      _handleLoginError(auth.errorMessage);
+      // Parse errors using utility
+      final errors = AuthErrorParser.parse(result.error);
+      setState(() {
+        _emailError = errors['email'];
+        _passwordError = errors['password'];
+      });
     }
   }
 
-  void _handleLoginError(String? errorMsg) {
-    if (errorMsg == null) {
-      setState(() {
-        _passwordError = 'Login failed. Please try again.';
-      });
-      return;
-    }
+  Future<void> _loginWithGoogle(AuthProvider auth) async {
+    final authService = AuthService(auth);
+    final result = await authService.googleSignInWithOverlay();
 
-    String? emailErr;
-    String? passwordErr;
+    if (!mounted) return;
 
-    final error = errorMsg.toLowerCase();
-
-    // Parse Firebase error codes and messages
-    if (error.contains('user-not-found') ||
-        error.contains('no user record') ||
-        error.contains('no account')) {
-      emailErr = 'No account found with this email';
-    } else if (error.contains('user-disabled') ||
-        error.contains('account disabled')) {
-      emailErr = 'This account has been disabled';
-    } else if (error.contains('wrong-password') ||
-        error.contains('password is invalid')) {
-      passwordErr = 'Incorrect password';
-    } else if (error.contains('invalid-credential') ||
-        error.contains('invalid credential')) {
-      passwordErr = 'Invalid email or password';
-    } else if (error.contains('invalid-email') ||
-        error.contains('badly formatted')) {
-      emailErr = 'Invalid email format';
-    } else if (error.contains('too-many-requests')) {
-      passwordErr = 'Too many failed attempts. Try again later';
-    } else if (error.contains('network') || error.contains('connection')) {
-      passwordErr = 'Network error. Check your connection';
+    if (result.success) {
+      Navigator.pushReplacementNamed(context, '/home');
     } else {
-      passwordErr = 'Invalid email or password';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AuthErrorParser.getGenericMessage(result.error)),
+        ),
+      );
     }
-
-    setState(() {
-      _emailError = emailErr;
-      _passwordError = passwordErr;
-    });
   }
 
   Future<void> _loginWithFacebook(AuthProvider auth) async {
-    print('1️⃣ Starting Facebook login...');
-
-    await auth.signInWithFacebook();
-
-    print('2️⃣ Facebook login completed. Auth status: ${auth.isAuthenticated}');
-    print('3️⃣ Error message: ${auth.errorMessage}');
+    final authService = AuthService(auth);
+    final result = await authService.facebookSignInWithOverlay();
 
     if (!mounted) return;
 
-    if (auth.isAuthenticated) {
-      print('✅ Authenticated! Navigating to home...');
+    if (result.success) {
       Navigator.pushReplacementNamed(context, '/home');
     } else {
-      print('❌ Not authenticated. Error: ${auth.errorMessage}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(auth.errorMessage ?? 'Facebook login failed'),
-          backgroundColor: Colors.red,
+          content: Text(AuthErrorParser.getGenericMessage(result.error)),
         ),
       );
     }
   }
 
   Future<void> _loginWithApple(AuthProvider auth) async {
-    // TODO: Implement Apple login
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Apple login coming soon')));
+    ).showSnackBar(const SnackBar(content: Text('heh heh,to be implemented ')));
   }
 
   @override
@@ -146,10 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background with decorative line art
           CustomPaint(size: Size.infinite, painter: BackgroundLineArtPainter()),
-
-          // Main content
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -157,6 +129,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
+                    Image.asset(
+                      'assets/images/signlogo.png',
+                      height: 70,
+                      width: 70,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 16),
                     const Text(
                       'Sign In',
                       style: TextStyle(
@@ -165,8 +144,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 40),
-
-                    // Email label
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -179,8 +156,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-
-                    // Email input
                     CustomTextField(
                       controller: _emailCtrl,
                       hintText: 'Enter your email',
@@ -192,10 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         }
                       },
                     ),
-
                     const SizedBox(height: 16),
-
-                    // Password label
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -208,8 +180,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-
-                    // Password input
                     CustomTextField(
                       controller: _passwordCtrl,
                       hintText: 'Enter your password',
@@ -224,43 +194,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         }
                       },
                     ),
-
                     const SizedBox(height: 24),
-
-                    // Sign In button
                     CustomButton(
                       text: 'Sign In',
                       onPressed: _loginEmail,
-                      isLoading: auth.isLoading,
                       backgroundColor: UIConstants.primaryBlue,
                       width: UIConstants.buttonWidth,
                       height: UIConstants.buttonHeight,
                       borderRadius: UIConstants.buttonRadius,
                     ),
-
                     const SizedBox(height: 16),
-
-                    // Google Sign In button
                     CustomButton(
                       text: 'Sign in with Google',
-                      onPressed: () async {
-                        await auth.signOutGoogle();
-                        await auth.signInWithGoogle();
-                        if (auth.isAuthenticated) {
-                          if (!mounted) return;
-                          Navigator.pushReplacementNamed(context, '/home');
-                        } else {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                auth.errorMessage ?? 'Login failed',
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                      isLoading: auth.isLoading,
+                      onPressed:
+                          auth.isLoading ? null : () => _loginWithGoogle(auth),
                       backgroundColor: UIConstants.darkBlue,
                       width: UIConstants.buttonWidth,
                       height: UIConstants.buttonHeight,
@@ -271,30 +218,23 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: 24,
                       ),
                     ),
-
                     const SizedBox(height: 24),
-
-                    // "Or login with" text
                     const Text(
                       'or login with',
                       style: TextStyle(color: Colors.black54, fontSize: 14),
                     ),
-
                     const SizedBox(height: 16),
-
-                    // Facebook and Apple login buttons row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Facebook button
                         GestureDetector(
                           onTap:
                               auth.isLoading
                                   ? null
                                   : () => _loginWithFacebook(auth),
                           child: Container(
-                            width: 60,
-                            height: 60,
+                            width: 50,
+                            height: 50,
                             decoration: BoxDecoration(
                               color: const Color(0xFF1877F2),
                               borderRadius: BorderRadius.circular(12),
@@ -302,22 +242,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: const Icon(
                               Icons.facebook,
                               color: Colors.white,
-                              size: 32,
+                              size: 27,
                             ),
                           ),
                         ),
-
                         const SizedBox(width: 20),
-
-                        // Apple button
                         GestureDetector(
                           onTap:
                               auth.isLoading
                                   ? null
                                   : () => _loginWithApple(auth),
                           child: Container(
-                            width: 60,
-                            height: 60,
+                            width: 50,
+                            height: 50,
                             decoration: BoxDecoration(
                               color: Colors.black,
                               borderRadius: BorderRadius.circular(12),
@@ -325,16 +262,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: const Icon(
                               Icons.apple,
                               color: Colors.white,
-                              size: 32,
+                              size: 27,
                             ),
                           ),
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 16),
-
-                    // Forgot Password
                     TextButton(
                       onPressed: () {
                         // TODO: Navigate to forgot password screen
@@ -348,8 +282,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-
-                    // Sign up
                     const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
