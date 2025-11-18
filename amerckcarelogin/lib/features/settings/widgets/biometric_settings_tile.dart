@@ -1,4 +1,6 @@
+import 'package:amerckcarelogin/features/auth/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../auth/services/biometric_service.dart';
 
 class BiometricSettingsTile extends StatefulWidget {
@@ -60,37 +62,8 @@ class _BiometricSettingsTileState extends State<BiometricSettingsTile> {
   }
 
   Future<void> _enableBiometric() async {
-    // Show confirmation dialog
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Enable $_biometricName Login?'),
-            content: Text(
-              'You\'ll need to provide your email and password to set up $_biometricName login. '
-              'Your credentials will be stored securely on your device.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Continue'),
-              ),
-            ],
-          ),
-    );
-
-    if (confirmed != true) return;
-
-    // Get credentials from user
-    final credentials = await _showCredentialsDialog();
-    if (credentials == null) return;
-
     try {
-      // Authenticate with biometric before enabling
+      // Authenticate using fingerprint/face
       final authenticated = await _biometricService.authenticate(
         reason: 'Authenticate to enable $_biometricName login',
       );
@@ -100,11 +73,12 @@ class _BiometricSettingsTileState extends State<BiometricSettingsTile> {
         return;
       }
 
-      // Enable biometric
-      await _biometricService.enableBiometric(
-        credentials['email']!,
-        credentials['password']!,
-      );
+      // Get current user from AuthProvider
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final email = auth.getCurrentUserEmail()!;
+
+      // Enable biometric without asking password
+      await _biometricService.enableBiometric(email, 'dummyPassword');
 
       setState(() => _isBiometricEnabled = true);
       _showSnackBar(
