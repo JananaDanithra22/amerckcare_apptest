@@ -1,3 +1,5 @@
+// lib/features/auth/services/biometric_service.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
@@ -12,6 +14,7 @@ class BiometricService {
   static const String _keyBiometricEnabled = 'biometric_enabled';
   static const String _keyStoredEmail = 'stored_email';
   static const String _keyStoredPassword = 'stored_password';
+  static const String _keyBiometricPromptShown = 'biometric_prompt_shown';
 
   /// Check if device supports biometric authentication
   Future<bool> isDeviceSupported() async {
@@ -52,19 +55,29 @@ class BiometricService {
   }
 
   /// Authenticate user with biometrics
-  Future<bool> authenticate({
-    String reason = 'Please authenticate to login',
-  }) async {
+  Future<bool> authenticate({String? reason}) async {
     try {
+      final biometricName = await getBiometricTypeName();
+      final localizedReason =
+          reason ?? 'Authenticate with $biometricName to login';
+
       return await _localAuth.authenticate(
-        localizedReason: reason,
+        localizedReason: localizedReason,
         options: const AuthenticationOptions(
-          stickyAuth: true, // Show auth dialog until user succeeds or cancels
-          biometricOnly: true, // Only biometric, no PIN/password fallback
+          stickyAuth: true,
+          biometricOnly: false, // Allow PIN fallback for better UX
         ),
       );
     } on PlatformException catch (e) {
       debugPrint('🔴 Biometric authentication error: ${e.code} - ${e.message}');
+
+      // Handle specific error codes
+      if (e.code == 'NotAvailable') {
+        debugPrint('Biometric authentication not available on this device');
+      } else if (e.code == 'NotEnrolled') {
+        debugPrint('User has not enrolled biometric authentication');
+      }
+
       return false;
     } catch (e) {
       debugPrint('🔴 Unexpected biometric error: $e');
@@ -83,12 +96,32 @@ class BiometricService {
     }
   }
 
+  /// Check if we've already shown the biometric prompt to avoid annoying users
+  Future<bool> hasBiometricPromptBeenShown() async {
+    try {
+      final shown = await _secureStorage.read(key: _keyBiometricPromptShown);
+      return shown == 'true';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Mark that we've shown the biometric prompt
+  Future<void> markBiometricPromptShown() async {
+    try {
+      await _secureStorage.write(key: _keyBiometricPromptShown, value: 'true');
+    } catch (e) {
+      debugPrint('🔴 Error marking prompt shown: $e');
+    }
+  }
+
   /// Enable biometric login and store credentials securely
   Future<void> enableBiometric(String email, String password) async {
     try {
       await _secureStorage.write(key: _keyBiometricEnabled, value: 'true');
       await _secureStorage.write(key: _keyStoredEmail, value: email);
       await _secureStorage.write(key: _keyStoredPassword, value: password);
+      await markBiometricPromptShown(); // Don't ask again
       debugPrint('✅ Biometric login enabled');
     } catch (e) {
       debugPrint('🔴 Error enabling biometric: $e');
@@ -149,5 +182,19 @@ class BiometricService {
   /// Clear all stored data (on logout)
   Future<void> clearAll() async {
     await disableBiometric();
+    // Keep the prompt shown flag so we don't ask again after logout
+  }
+
+  /// Reset everything including prompt flag (for testing or settings)
+  Future<void> resetAll() async {
+    try {
+      await _secureStorage.delete(key: _keyBiometricEnabled);
+      await _secureStorage.delete(key: _keyStoredEmail);
+      await _secureStorage.delete(key: _keyStoredPassword);
+      await _secureStorage.delete(key: _keyBiometricPromptShown);
+      debugPrint('✅ All biometric data reset');
+    } catch (e) {
+      debugPrint('🔴 Error resetting biometric data: $e');
+    }
   }
 }

@@ -197,4 +197,6 @@ class AuthProvider with ChangeNotifier {
   String? getCurrentUserEmail() {
     return _auth.currentUser?.email;
   }
+
+  getStoredCredentials() {}
 }
