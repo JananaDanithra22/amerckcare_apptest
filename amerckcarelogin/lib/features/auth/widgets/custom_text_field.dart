@@ -19,7 +19,7 @@ class CustomTextField extends StatelessWidget {
     this.onToggleVisibility,
     this.onChanged,
     this.keyboardType,
-    this.borderRadius = 12.0,
+    this.borderRadius = 12.0, required String? Function(dynamic value) validator,
   }) : super(key: key);
 
   @override

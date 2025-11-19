@@ -333,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (_emailError != null) {
                             setState(() => _emailError = null);
                           }
-                        },
+                        }, validator: (value) {  },
                       ),
                       const SizedBox(height: 16),
                       const Align(
@@ -360,14 +360,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (_passwordError != null) {
                             setState(() => _passwordError = null);
                           }
-                        },
+                        }, validator: (value) {  },
                       ),
                       const SizedBox(height: 24),
                       CustomButton(
                         text: 'Sign In',
                         onPressed: _loginEmail,
                         isLoading: auth.isLoading,
-                        backgroundColor: UIConstants.primaryBlue,
+                        backgroundColor: const Color.fromRGBO(28, 138, 229, 1),
                         width: UIConstants.buttonWidth,
                         height: UIConstants.buttonHeight,
                         borderRadius: UIConstants.buttonRadius,
