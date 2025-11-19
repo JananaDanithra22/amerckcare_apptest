@@ -1,4 +1,5 @@
 import 'package:amerckcarelogin/features/auth/providers/auth_provider.dart';
+import 'package:amerckcarelogin/features/auth/widgets/custom_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/services/biometric_service.dart';
@@ -159,36 +160,41 @@ class _BiometricSettingsTileState extends State<BiometricSettingsTile> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        TextField(
-                          controller: emailController,
-                          decoration: const InputDecoration(
-                            labelText: 'Email',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.email),
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Email',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
+                        ),
+                        const SizedBox(height: 6),
+                        CustomTextField(
+                          controller: emailController,
+                          hintText: 'Enter your email',
                           keyboardType: TextInputType.emailAddress,
                         ),
                         const SizedBox(height: 16),
-                        TextField(
-                          controller: passwordController,
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            border: const OutlineInputBorder(),
-                            prefixIcon: const Icon(Icons.lock),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                obscurePassword
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                              ),
-                              onPressed: () {
-                                setState(
-                                  () => obscurePassword = !obscurePassword,
-                                );
-                              },
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Password',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
                           ),
+                        ),
+                        const SizedBox(height: 6),
+                        CustomTextField(
+                          controller: passwordController,
+                          hintText: 'Enter your password',
                           obscureText: obscurePassword,
+                          onToggleVisibility: () {
+                            setState(() => obscurePassword = !obscurePassword);
+                          },
                         ),
                       ],
                     ),
@@ -209,7 +215,6 @@ class _BiometricSettingsTileState extends State<BiometricSettingsTile> {
                           );
                           return;
                         }
-
                         Navigator.pop(context, {
                           'email': emailController.text.trim(),
                           'password': passwordController.text,
