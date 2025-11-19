@@ -23,7 +23,6 @@ class EnableBiometricScreen extends StatefulWidget {
 class _EnableBiometricScreenState extends State<EnableBiometricScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
 
   final BiometricService _biometricService = BiometricService();
@@ -47,57 +46,66 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
   @override
   void dispose() {
     _pulseController.dispose();
-    _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
 
   bool get _isFormValid {
-    return Validators.validateEmail(_emailCtrl.text.trim()) == null &&
-        Validators.validatePassword(_passwordCtrl.text) == null;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.loginType == LoginType.emailPassword) {
+      return Validators.validatePassword(_passwordCtrl.text) == null;
+    }
+    // SSO users don't need password
+    return true;
   }
 
-  /// NEW: Secure enable flow:
-  /// 1) validate fields
-  /// 2) verify credentials with backend (AuthService)
-  /// 3) check biometric availability
-  /// 4) prompt biometric scan (authenticate)
-  /// 5) if ok -> enableBiometric (store creds)
   Future<void> _enableBiometric() async {
-    // 1) local validation
-    final email = _emailCtrl.text.trim();
-    final password = _passwordCtrl.text;
-
-    final emailErr = Validators.validateEmail(email);
-    final passErr = Validators.validatePassword(password);
-
-    if (emailErr != null || passErr != null) {
-      // show inline errors
-      _formKey.currentState?.validate();
-      return;
-    }
-
     setState(() => _isLoading = true);
 
     try {
-      // 2) Verify credentials with backend (reuse same AuthService flow you use on login)
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final authService = AuthService(authProvider);
 
-      final loginResult = await authService.loginWithOverlay(email, password);
+      String? email = authProvider.getCurrentUserEmail();
+      String? password;
 
-      if (!mounted) return;
+      final loginType = authProvider.loginType;
 
-      if (!loginResult.success) {
-        // do not enable biometric if credentials invalid
-        final message = AuthErrorParser.getGenericMessage(loginResult.error);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
-        return;
+      if (loginType == LoginType.emailPassword) {
+        password = _passwordCtrl.text;
+
+        final passErr = Validators.validatePassword(password);
+        if (passErr != null) {
+          _formKey.currentState?.validate();
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        if (email == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No logged-in user found.')),
+          );
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        final loginResult = await authService.loginWithOverlay(email, password);
+        if (!mounted) return;
+
+        if (!loginResult.success) {
+          final message = AuthErrorParser.getGenericMessage(loginResult.error);
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
+          setState(() => _isLoading = false);
+          return;
+        }
+      } else {
+        // SSO user
+        password = 'SSO'; // placeholder
+        email ??= ''; // fallback empty string if email is null
       }
 
-      // 3) Check biometric availability
       final isAvailable = await _biometricService.isBiometricAvailable();
       if (!isAvailable) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -105,13 +113,11 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
             content: Text('Biometric not available on this device.'),
           ),
         );
+        setState(() => _isLoading = false);
         return;
       }
 
-      // Optional: get biometric name for messages
       final bioName = await _biometricService.getBiometricTypeName();
-
-      // 4) Prompt the biometric scanner (so user must scan)
       final didAuthenticate = await _biometricService.authenticate(
         reason: 'Scan your $bioName to enable biometric login',
       );
@@ -122,18 +128,17 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
             content: Text('Biometric authentication failed or cancelled.'),
           ),
         );
+        setState(() => _isLoading = false);
         return;
       }
 
-      // 5) Store credentials / mark biometric enabled
       await _biometricService.enableBiometric(email, password);
 
-      // Success
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$bioName enabled successfully')),
         );
-        Navigator.of(context).pop(); // return to previous screen
+        Navigator.of(context).pop(); // close enable screen
       }
     } catch (e, st) {
       debugPrint('🔴 Error enabling biometric: $e\n$st');
@@ -152,6 +157,7 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
   @override
   Widget build(BuildContext context) {
     final double fieldWidth = MediaQuery.of(context).size.width * 0.85;
+    final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -182,73 +188,44 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
                   "Enable Biometric Login",
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
-
                 const SizedBox(height: 8),
-
                 const Text(
                   "Make your login easier and more secure.\n"
                   "Enable fingerprint login to access your account faster.",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),
-
-                const SizedBox(height: 30),
-
-                // EMAIL LABEL
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Email",
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-
-                SizedBox(
-                  width: fieldWidth,
-                  child: CustomTextField(
-                    controller: _emailCtrl,
-                    hintText: 'Enter your email',
-                    keyboardType: TextInputType.emailAddress,
-                    onChanged: (_) => setState(() {}),
-                    validator: (v) => Validators.validateEmail(v?.trim() ?? ''),
-                  ),
-                ),
-
                 const SizedBox(height: 18),
 
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Password",
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                // PASSWORD FIELD ONLY FOR EMAIL/PASSWORD USERS
+                if (authProvider.loginType == LoginType.emailPassword) ...[
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Password",
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 6),
-
-                SizedBox(
-                  width: fieldWidth,
-                  child: CustomTextField(
-                    controller: _passwordCtrl,
-                    hintText: 'Enter your password',
-                    obscureText: _obscurePassword,
-                    onToggleVisibility: () {
-                      setState(() => _obscurePassword = !_obscurePassword);
-                    },
-                    onChanged: (_) => setState(() {}),
-                    validator: (v) => Validators.validatePassword(v ?? ''),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: fieldWidth,
+                    child: CustomTextField(
+                      controller: _passwordCtrl,
+                      hintText: 'Enter your password',
+                      obscureText: _obscurePassword,
+                      onToggleVisibility: () {
+                        setState(() => _obscurePassword = !_obscurePassword);
+                      },
+                      onChanged: (_) => setState(() {}),
+                      validator: (v) => Validators.validatePassword(v ?? ''),
+                    ),
                   ),
-                ),
-
-                const SizedBox(height: 30),
+                  const SizedBox(height: 30),
+                ],
 
                 // ENABLE BUTTON
                 CustomButton(
@@ -261,7 +238,6 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
                   backgroundColor: UIConstants.primaryBlue,
                   borderRadius: UIConstants.buttonRadius,
                 ),
-
                 const SizedBox(height: 20),
               ],
             ),

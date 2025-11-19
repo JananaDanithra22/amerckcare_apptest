@@ -71,7 +71,6 @@ class BiometricService {
     } on PlatformException catch (e) {
       debugPrint('🔴 Biometric authentication error: ${e.code} - ${e.message}');
 
-      // Handle specific error codes
       if (e.code == 'NotAvailable') {
         debugPrint('Biometric authentication not available on this device');
       } else if (e.code == 'NotEnrolled') {
@@ -116,6 +115,7 @@ class BiometricService {
   }
 
   /// Enable biometric login and store credentials securely
+  /// For SSO users, password can be a placeholder like 'SSO'
   Future<void> enableBiometric(String email, String password) async {
     try {
       await _secureStorage.write(key: _keyBiometricEnabled, value: 'true');
@@ -197,6 +197,4 @@ class BiometricService {
       debugPrint('🔴 Error resetting biometric data: $e');
     }
   }
-
-  saveCredentials(String email, String password) {}
 }

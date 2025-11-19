@@ -12,6 +12,8 @@ import 'package:amerckcarelogin/features/auth/domain/providers/facebook_auth_pro
     as facebook;
 import '../services/biometric_service.dart'; // <-- Import
 
+enum LoginType { emailPassword, google, facebook }
+
 /// AuthProvider - Only handles state management
 /// Business logic moved to AuthService
 class AuthProvider with ChangeNotifier {
@@ -30,6 +32,14 @@ class AuthProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   User? get user => _auth.currentUser;
+
+  LoginType? _loginType;
+  LoginType? get loginType => _loginType;
+
+  void setLoginType(LoginType type) {
+    _loginType = type;
+    notifyListeners();
+  }
 
   /// Constructor - Check if user is already logged in
   AuthProvider() {
@@ -73,6 +83,8 @@ class AuthProvider with ChangeNotifier {
     );
     final success = await _authenticate(provider);
 
+    if (success) setLoginType(LoginType.emailPassword);
+
     // Enable biometric login if user opts in
     if (success && enableBiometric) {
       try {
@@ -107,6 +119,7 @@ class AuthProvider with ChangeNotifier {
 
     if (result.success) {
       debugPrint('✅ Email Sign-Up Successful');
+      setLoginType(LoginType.emailPassword);
       // Enable biometric login after signup if user opts in
       if (enableBiometric) {
         try {
@@ -120,6 +133,7 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Login with biometrics
   Future<bool> loginWithBiometrics() async {
     final isEnabled = await _biometricService.isBiometricEnabled();
     if (!isEnabled) return false;
@@ -136,11 +150,21 @@ class AuthProvider with ChangeNotifier {
     final email = credentials['email']!;
     final password = credentials['password']!;
 
-    await login(
-      email,
-      password,
-      enableBiometric: false, // Already enabled
-    ); // Reuse login method
+    // Determine if this is an SSO login
+    if (password == 'SSO') {
+      // Placeholder: login via SSO provider
+      if (_loginType == LoginType.google) {
+        await signInWithGoogle();
+      } else if (_loginType == LoginType.facebook) {
+        await signInWithFacebook();
+      }
+    } else {
+      await login(
+        email,
+        password,
+        enableBiometric: false, // Already enabled
+      ); // Reuse login method
+    }
 
     return _isAuthenticated;
   }
@@ -148,7 +172,8 @@ class AuthProvider with ChangeNotifier {
   /// Google Sign-In
   Future<void> signInWithGoogle() async {
     final provider = google.GoogleAuthProvider();
-    await _authenticate(provider);
+    final success = await _authenticate(provider);
+    if (success) setLoginType(LoginType.google);
   }
 
   /// Sign out from Google only
@@ -164,7 +189,8 @@ class AuthProvider with ChangeNotifier {
   /// Facebook Sign-In
   Future<void> signInWithFacebook() async {
     final provider = facebook.FacebookAuthProvider();
-    await _authenticate(provider);
+    final success = await _authenticate(provider);
+    if (success) setLoginType(LoginType.facebook);
   }
 
   /// Full logout
@@ -181,6 +207,7 @@ class AuthProvider with ChangeNotifier {
       ]);
       _isAuthenticated = false;
       _errorMessage = null;
+      _loginType = null;
       debugPrint('✅ Logout Successful');
     } catch (e) {
       _errorMessage = 'Logout failed';

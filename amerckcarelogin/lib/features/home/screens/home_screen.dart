@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../config/routes.dart'; // <-- Import AppRoutes
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -15,13 +16,20 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Home'),
+        automaticallyImplyLeading: false, // removes back button
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.pushNamed(context, '/settings');
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await auth.logout(); // perform logout
+              if (context.mounted) {
+                Navigator.pushReplacementNamed(
+                  context,
+                  AppRoutes.login, // <-- Fixed here
+                ); // go back to login
+              }
             },
-            tooltip: 'Settings',
+            tooltip: 'Logout',
           ),
         ],
       ),
@@ -90,7 +98,10 @@ class HomeScreen extends StatelessWidget {
                     icon: Icons.settings,
                     label: 'Settings',
                     onTap: () {
-                      Navigator.pushNamed(context, '/settings');
+                      Navigator.pushNamed(
+                        context,
+                        AppRoutes.settings,
+                      ); // <-- fixed route
                     },
                   ),
                   const SizedBox(width: 16),

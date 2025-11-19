@@ -1,6 +1,8 @@
 import 'package:amerckcarelogin/core/constants/ui_constants.dart';
+import 'package:amerckcarelogin/features/auth/providers/auth_provider.dart';
 import 'package:amerckcarelogin/features/auth/services/biometric_service.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../screens/enable_biometric_screen.dart';
 
 class BiometricSettingsTile extends StatefulWidget {
@@ -32,17 +34,31 @@ class _BiometricSettingsTileState extends State<BiometricSettingsTile> {
   }
 
   Future<void> _toggle(bool value) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
     if (value == true) {
+      // Only allow enabling biometric if user is logged in
+      if (!authProvider.isAuthenticated) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'You need to be logged in to enable biometric login.',
+            ),
+          ),
+        );
+        return;
+      }
+
       // Navigate to enable screen
       await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const EnableBiometricScreen()),
       );
 
-      // reload status after returning
+      // Reload status after returning
       _loadStatus();
     } else {
-      // disable biometric
+      // Disable biometric
       await _biometricService.disableBiometric();
       setState(() => _isEnabled = false);
     }
@@ -62,20 +78,26 @@ class _BiometricSettingsTileState extends State<BiometricSettingsTile> {
       );
     }
 
-    return ListTile(
-      leading: const Icon(Icons.fingerprint, color: Colors.blue),
-      title: const Text('Biometric Login'),
-      subtitle: const Text(
-        'Set up and manage biometric login for faster authentication',
-      ),
-      trailing: Transform.scale(
-        scale: 0.8, // reduce size of switch
-        child: Switch(
-          value: _isEnabled,
-          onChanged: _toggle,
-          activeColor: UIConstants.darkBlue, // toggle ON color
-        ),
-      ),
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, _) {
+        return ListTile(
+          leading: const Icon(Icons.fingerprint, color: Colors.blue),
+          title: const Text('Biometric Login'),
+          subtitle: Text(
+            authProvider.loginType == LoginType.emailPassword
+                ? 'Set up and manage biometric login for faster authentication'
+                : 'Enable biometric login for quicker access (SSO users)',
+          ),
+          trailing: Transform.scale(
+            scale: 0.8,
+            child: Switch(
+              value: _isEnabled,
+              onChanged: _toggle,
+              activeColor: UIConstants.darkBlue,
+            ),
+          ),
+        );
+      },
     );
   }
 }
