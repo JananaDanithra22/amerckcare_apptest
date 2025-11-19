@@ -120,7 +120,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Biometric login (email/password stored securely)
   Future<bool> loginWithBiometrics() async {
     final isEnabled = await _biometricService.isBiometricEnabled();
     if (!isEnabled) return false;
@@ -129,7 +128,9 @@ class AuthProvider with ChangeNotifier {
     if (credentials == null) return false;
 
     // Authenticate via biometrics
-    final authenticated = await _biometricService.authenticate();
+    final authenticated = await _biometricService.authenticate(
+      reason: 'Authenticate to login',
+    );
     if (!authenticated) return false;
 
     final email = credentials['email']!;
@@ -138,7 +139,9 @@ class AuthProvider with ChangeNotifier {
     await login(
       email,
       password,
-    ); // Reuse login method (without re-enabling biometric)
+      enableBiometric: false, // Already enabled
+    ); // Reuse login method
+
     return _isAuthenticated;
   }
 
@@ -198,5 +201,8 @@ class AuthProvider with ChangeNotifier {
     return _auth.currentUser?.email;
   }
 
-  getStoredCredentials() {}
+  /// Helper to retrieve stored credentials
+  Future<Map<String, String?>?> getStoredCredentials() async {
+    return await _biometricService.getStoredCredentials();
+  }
 }

@@ -77,8 +77,25 @@ class _BiometricSettingsTileState extends State<BiometricSettingsTile> {
       final auth = Provider.of<AuthProvider>(context, listen: false);
       final email = auth.getCurrentUserEmail()!;
 
-      // Enable biometric without asking password
-      await _biometricService.enableBiometric(email, 'dummyPassword');
+      // Show password dialog if password not stored yet
+      final credentials = await _biometricService.getStoredCredentials();
+      String password;
+
+      if (credentials == null || credentials['password'] == null) {
+        // Ask user to enter password if not stored
+        final entered = await _showCredentialsDialog();
+        if (entered == null) {
+          _showSnackBar('Biometric login requires a password to store.');
+          return;
+        }
+        password = entered['password']!;
+        await _biometricService.saveCredentials(email, password);
+      } else {
+        password = credentials['password']!;
+      }
+
+      // Enable biometric login with stored credentials
+      await _biometricService.enableBiometric(email, password);
 
       setState(() => _isBiometricEnabled = true);
       _showSnackBar(

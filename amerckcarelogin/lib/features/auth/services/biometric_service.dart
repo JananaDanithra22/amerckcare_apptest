@@ -197,4 +197,6 @@ class BiometricService {
       debugPrint('🔴 Error resetting biometric data: $e');
     }
   }
+
+  saveCredentials(String email, String password) {}
 }
