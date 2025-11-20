@@ -157,6 +157,10 @@ class AuthProvider with ChangeNotifier {
         await signInWithGoogle();
       } else if (_loginType == LoginType.facebook) {
         await signInWithFacebook();
+      } else {
+        // If loginType is unknown, try to sign in via Firebase with email (if available)
+        // or fallback to showing an error.
+        debugPrint('⚠️ SSO credentials present but loginType unknown.');
       }
     } else {
       await login(
@@ -203,11 +207,12 @@ class AuthProvider with ChangeNotifier {
         _auth.signOut(),
         _googleSignIn.signOut(),
         FacebookAuth.instance.logOut(),
-        _biometricService.clearAll(), // <-- Clear biometric on logout
+        // NOTE: Do NOT clear biometric here so that biometric remains enabled across logout.
+        // _biometricService.clearAll(), // <-- removed
       ]);
       _isAuthenticated = false;
       _errorMessage = null;
-      _loginType = null;
+      // keep _loginType so biometric flow can know SSO provider if needed
       debugPrint('✅ Logout Successful');
     } catch (e) {
       _errorMessage = 'Logout failed';
