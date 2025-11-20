@@ -35,6 +35,9 @@ class AuthProvider with ChangeNotifier {
   LoginType? _loginType;
   LoginType? get loginType => _loginType;
 
+  bool _biometricTriggered = false; // Prevent multiple popups
+  bool get biometricTriggered => _biometricTriggered;
+
   void setLoginType(LoginType type) {
     _loginType = type;
     notifyListeners();
@@ -46,6 +49,7 @@ class AuthProvider with ChangeNotifier {
       _isAuthenticated = user != null;
       notifyListeners();
     });
+    // ⚠️ Do NOT call biometric login here
   }
 
   /// Generic authentication method
@@ -84,7 +88,6 @@ class AuthProvider with ChangeNotifier {
 
     if (success) setLoginType(LoginType.emailPassword);
 
-    // Enable biometric login if user opts in
     if (success && enableBiometric) {
       try {
         await _biometricService.enableBiometric(
@@ -124,7 +127,6 @@ class AuthProvider with ChangeNotifier {
       debugPrint('✅ Email Sign-Up Successful');
       setLoginType(LoginType.emailPassword);
 
-      // Enable biometric login after signup if user opts in
       if (enableBiometric) {
         try {
           await _biometricService.enableBiometric(
@@ -141,16 +143,20 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Explicit biometric login trigger
+  Future<bool> triggerBiometricLogin() async {
+    if (_biometricTriggered) return false;
+    _biometricTriggered = true;
+    return await loginWithBiometrics();
+  }
+
   /// Login with biometrics
-  /// Login with biometrics
-  /// ✅ UPDATED: Handle different login types & prevent null errors
   Future<bool> loginWithBiometrics() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      // Check if biometric is enabled
       final isEnabled = await _biometricService.isBiometricEnabled();
       if (!isEnabled) {
         _errorMessage = 'Biometric login not enabled';
@@ -159,7 +165,6 @@ class AuthProvider with ChangeNotifier {
         return false;
       }
 
-      // Get stored credentials
       final credentials = await _biometricService.getStoredCredentials();
       if (credentials == null || credentials['email'] == null) {
         _errorMessage = 'No stored credentials found';
@@ -168,7 +173,6 @@ class AuthProvider with ChangeNotifier {
         return false;
       }
 
-      // Authenticate with biometric
       final authenticated = await _biometricService.authenticate(
         reason: 'Authenticate to login to AmerckCare',
       );
@@ -180,14 +184,12 @@ class AuthProvider with ChangeNotifier {
         return false;
       }
 
-      // Get login type from stored credentials
       final loginTypeStr = credentials['loginType'] ?? 'emailPassword';
       final email = credentials['email']!;
       final password = credentials['password'];
 
       debugPrint('🔐 Biometric auth successful. Login type: $loginTypeStr');
 
-      // Authenticate based on stored login type
       switch (loginTypeStr) {
         case 'emailPassword':
           if (password == null) {
@@ -262,7 +264,6 @@ class AuthProvider with ChangeNotifier {
         _auth.signOut(),
         _googleSignIn.signOut(),
         FacebookAuth.instance.logOut(),
-        // Do NOT clear biometric so it remains enabled across logout
       ]);
 
       _isAuthenticated = false;
@@ -277,19 +278,15 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Check if user is currently signed in
   bool isUserSignedIn() {
     return _auth.currentUser != null;
   }
 
-  /// Get current user's email
   String? getCurrentUserEmail() {
     return _auth.currentUser?.email;
   }
 
-  /// Helper to retrieve stored credentials
   Future<Map<String, String?>?> getStoredCredentials() async {
     return await _biometricService.getStoredCredentials();
   }
 }
-//==============================================
