@@ -171,7 +171,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       if (_emailError != null) {
                         setState(() => _emailError = null);
                       }
-                    }, validator: (value) {  },
+                    },
+                    validator: (value) {},
                   ),
                   const SizedBox(height: 16),
                   const Align(
@@ -199,7 +200,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       if (_passwordError != null) {
                         setState(() => _passwordError = null);
                       }
-                    }, validator: (value) {  },
+                    },
+                    validator: (value) {},
                   ),
                   const SizedBox(height: 16),
                   const Align(
@@ -227,7 +229,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       if (_confirmError != null) {
                         setState(() => _confirmError = null);
                       }
-                    }, validator: (value) {  },
+                    },
+                    validator: (value) {},
                   ),
                   const SizedBox(height: 24),
                   CustomButton(

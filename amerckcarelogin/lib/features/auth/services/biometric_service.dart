@@ -1,5 +1,4 @@
-// lib/features/auth/services/biometric_service.dart
-
+import 'package:amerckcarelogin/features/auth/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
@@ -10,10 +9,13 @@ class BiometricService {
   final LocalAuthentication _localAuth = LocalAuthentication();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
+  bool _isAuthenticating = false; // ✅ Prevent concurrent auth
+
   // Storage keys
   static const String _keyBiometricEnabled = 'biometric_enabled';
   static const String _keyStoredEmail = 'stored_email';
   static const String _keyStoredPassword = 'stored_password';
+  static const String _keyLoginType = 'stored_login_type';
   static const String _keyBiometricPromptShown = 'biometric_prompt_shown';
 
   /// Check if device supports biometric authentication
@@ -27,7 +29,6 @@ class BiometricService {
   }
 
   /// Check if biometric authentication is available
-  /// (device supports it AND user has enrolled biometrics)
   Future<bool> isBiometricAvailable() async {
     try {
       final isSupported = await _localAuth.isDeviceSupported();
@@ -56,6 +57,9 @@ class BiometricService {
 
   /// Authenticate user with biometrics
   Future<bool> authenticate({String? reason}) async {
+    if (_isAuthenticating) return false; // Prevent multiple concurrent auth
+    _isAuthenticating = true;
+
     try {
       final biometricName = await getBiometricTypeName();
       final localizedReason =
@@ -65,22 +69,17 @@ class BiometricService {
         localizedReason: localizedReason,
         options: const AuthenticationOptions(
           stickyAuth: true,
-          biometricOnly: false, // Allow PIN fallback for better UX
+          biometricOnly: false,
         ),
       );
     } on PlatformException catch (e) {
       debugPrint('🔴 Biometric authentication error: ${e.code} - ${e.message}');
-
-      if (e.code == 'NotAvailable') {
-        debugPrint('Biometric authentication not available on this device');
-      } else if (e.code == 'NotEnrolled') {
-        debugPrint('User has not enrolled biometric authentication');
-      }
-
       return false;
     } catch (e) {
       debugPrint('🔴 Unexpected biometric error: $e');
       return false;
+    } finally {
+      _isAuthenticating = false;
     }
   }
 
@@ -95,7 +94,7 @@ class BiometricService {
     }
   }
 
-  /// Check if we've already shown the biometric prompt to avoid annoying users
+  /// Check if we've already shown the biometric prompt
   Future<bool> hasBiometricPromptBeenShown() async {
     try {
       final shown = await _secureStorage.read(key: _keyBiometricPromptShown);
@@ -115,14 +114,31 @@ class BiometricService {
   }
 
   /// Enable biometric login and store credentials securely
-  /// For SSO users, password can be a placeholder like 'SSO'
-  Future<void> enableBiometric(String email, String password) async {
+  /// For SSO users, password can be empty/null
+  Future<void> enableBiometric(
+    String email,
+    String? password, {
+    required LoginType loginType,
+  }) async {
     try {
       await _secureStorage.write(key: _keyBiometricEnabled, value: 'true');
       await _secureStorage.write(key: _keyStoredEmail, value: email);
-      await _secureStorage.write(key: _keyStoredPassword, value: password);
-      await markBiometricPromptShown(); // Don't ask again
-      debugPrint('✅ Biometric login enabled');
+
+      // Store login type
+      await _secureStorage.write(
+        key: _keyLoginType,
+        value: loginType.toString().split('.').last,
+      );
+
+      // Store password only for email/password users
+      if (loginType == LoginType.emailPassword && password != null) {
+        await _secureStorage.write(key: _keyStoredPassword, value: password);
+      } else {
+        await _secureStorage.delete(key: _keyStoredPassword);
+      }
+
+      await markBiometricPromptShown();
+      debugPrint('✅ Biometric login enabled for $loginType');
     } catch (e) {
       debugPrint('🔴 Error enabling biometric: $e');
       rethrow;
@@ -135,6 +151,7 @@ class BiometricService {
       await _secureStorage.delete(key: _keyBiometricEnabled);
       await _secureStorage.delete(key: _keyStoredEmail);
       await _secureStorage.delete(key: _keyStoredPassword);
+      await _secureStorage.delete(key: _keyLoginType);
       debugPrint('✅ Biometric login disabled');
     } catch (e) {
       debugPrint('🔴 Error disabling biometric: $e');
@@ -143,36 +160,36 @@ class BiometricService {
   }
 
   /// Get stored credentials (after successful biometric authentication)
-  Future<Map<String, String>?> getStoredCredentials() async {
+  Future<Map<String, String?>?> getStoredCredentials() async {
     try {
       final email = await _secureStorage.read(key: _keyStoredEmail);
       final password = await _secureStorage.read(key: _keyStoredPassword);
+      final loginTypeStr = await _secureStorage.read(key: _keyLoginType);
 
-      if (email != null && password != null) {
-        return {'email': email, 'password': password};
-      }
-      return null;
+      if (email == null || loginTypeStr == null) return null;
+
+      return {
+        'email': email,
+        'password': password,
+        'loginType': loginTypeStr, // 'emailPassword', 'google', 'facebook'
+      };
     } catch (e) {
       debugPrint('🔴 Error reading stored credentials: $e');
       return null;
     }
   }
 
-  /// Get biometric type name for display (Fingerprint/Face ID/etc.)
+  /// Get biometric type name for display
   Future<String> getBiometricTypeName() async {
     try {
       final biometrics = await getAvailableBiometrics();
 
-      if (biometrics.contains(BiometricType.face)) {
-        return 'Face ID';
-      } else if (biometrics.contains(BiometricType.fingerprint)) {
-        return 'Fingerprint';
-      } else if (biometrics.contains(BiometricType.iris)) {
-        return 'Iris';
-      } else if (biometrics.contains(BiometricType.strong) ||
-          biometrics.contains(BiometricType.weak)) {
+      if (biometrics.contains(BiometricType.face)) return 'Face ID';
+      if (biometrics.contains(BiometricType.fingerprint)) return 'Fingerprint';
+      if (biometrics.contains(BiometricType.iris)) return 'Iris';
+      if (biometrics.contains(BiometricType.strong) ||
+          biometrics.contains(BiometricType.weak))
         return 'Biometric';
-      }
       return 'Biometric';
     } catch (e) {
       return 'Biometric';
@@ -182,15 +199,15 @@ class BiometricService {
   /// Clear all stored data (on logout)
   Future<void> clearAll() async {
     await disableBiometric();
-    // Keep the prompt shown flag so we don't ask again after logout
   }
 
-  /// Reset everything including prompt flag (for testing or settings)
+  /// Reset everything including prompt flag
   Future<void> resetAll() async {
     try {
       await _secureStorage.delete(key: _keyBiometricEnabled);
       await _secureStorage.delete(key: _keyStoredEmail);
       await _secureStorage.delete(key: _keyStoredPassword);
+      await _secureStorage.delete(key: _keyLoginType);
       await _secureStorage.delete(key: _keyBiometricPromptShown);
       debugPrint('✅ All biometric data reset');
     } catch (e) {

@@ -10,7 +10,7 @@ import 'package:amerckcarelogin/features/auth/domain/providers/google_auth_provi
     as google;
 import 'package:amerckcarelogin/features/auth/domain/providers/facebook_auth_provider.dart'
     as facebook;
-import '../services/biometric_service.dart'; // <-- Import
+import '../services/biometric_service.dart';
 
 enum LoginType { emailPassword, google, facebook }
 
@@ -19,8 +19,7 @@ enum LoginType { emailPassword, google, facebook }
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
-  final BiometricService _biometricService =
-      BiometricService(); // <-- Biometric
+  final BiometricService _biometricService = BiometricService();
 
   bool _isAuthenticated = false;
   bool get isAuthenticated => _isAuthenticated;
@@ -88,7 +87,11 @@ class AuthProvider with ChangeNotifier {
     // Enable biometric login if user opts in
     if (success && enableBiometric) {
       try {
-        await _biometricService.enableBiometric(email, password);
+        await _biometricService.enableBiometric(
+          email,
+          password,
+          loginType: LoginType.emailPassword,
+        );
       } catch (e) {
         debugPrint('🔴 Error enabling biometric: $e');
       }
@@ -120,10 +123,15 @@ class AuthProvider with ChangeNotifier {
     if (result.success) {
       debugPrint('✅ Email Sign-Up Successful');
       setLoginType(LoginType.emailPassword);
+
       // Enable biometric login after signup if user opts in
       if (enableBiometric) {
         try {
-          await _biometricService.enableBiometric(emailAddress, password);
+          await _biometricService.enableBiometric(
+            emailAddress,
+            password,
+            loginType: LoginType.emailPassword,
+          );
         } catch (e) {
           debugPrint('🔴 Error enabling biometric: $e');
         }
@@ -134,43 +142,90 @@ class AuthProvider with ChangeNotifier {
   }
 
   /// Login with biometrics
+  /// Login with biometrics
+  /// ✅ UPDATED: Handle different login types & prevent null errors
   Future<bool> loginWithBiometrics() async {
-    final isEnabled = await _biometricService.isBiometricEnabled();
-    if (!isEnabled) return false;
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
 
-    final credentials = await _biometricService.getStoredCredentials();
-    if (credentials == null) return false;
-
-    // Authenticate via biometrics
-    final authenticated = await _biometricService.authenticate(
-      reason: 'Authenticate to login',
-    );
-    if (!authenticated) return false;
-
-    final email = credentials['email']!;
-    final password = credentials['password']!;
-
-    // Determine if this is an SSO login
-    if (password == 'SSO') {
-      // Placeholder: login via SSO provider
-      if (_loginType == LoginType.google) {
-        await signInWithGoogle();
-      } else if (_loginType == LoginType.facebook) {
-        await signInWithFacebook();
-      } else {
-        // If loginType is unknown, try to sign in via Firebase with email (if available)
-        // or fallback to showing an error.
-        debugPrint('⚠️ SSO credentials present but loginType unknown.');
+    try {
+      // Check if biometric is enabled
+      final isEnabled = await _biometricService.isBiometricEnabled();
+      if (!isEnabled) {
+        _errorMessage = 'Biometric login not enabled';
+        _isLoading = false;
+        notifyListeners();
+        return false;
       }
-    } else {
-      await login(
-        email,
-        password,
-        enableBiometric: false, // Already enabled
-      ); // Reuse login method
-    }
 
-    return _isAuthenticated;
+      // Get stored credentials
+      final credentials = await _biometricService.getStoredCredentials();
+      if (credentials == null || credentials['email'] == null) {
+        _errorMessage = 'No stored credentials found';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      // Authenticate with biometric
+      final authenticated = await _biometricService.authenticate(
+        reason: 'Authenticate to login to AmerckCare',
+      );
+
+      if (!authenticated) {
+        _errorMessage = 'Biometric authentication failed';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      // Get login type from stored credentials
+      final loginTypeStr = credentials['loginType'] ?? 'emailPassword';
+      final email = credentials['email']!;
+      final password = credentials['password'];
+
+      debugPrint('🔐 Biometric auth successful. Login type: $loginTypeStr');
+
+      // Authenticate based on stored login type
+      switch (loginTypeStr) {
+        case 'emailPassword':
+          if (password == null) {
+            _errorMessage = 'Stored credentials incomplete';
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+          await login(email, password, enableBiometric: false);
+          break;
+
+        case 'google':
+          debugPrint('🔐 Attempting Google sign-in for biometric login...');
+          await signInWithGoogle();
+          break;
+
+        case 'facebook':
+          debugPrint('🔐 Attempting Facebook sign-in for biometric login...');
+          await signInWithFacebook();
+          break;
+
+        default:
+          _errorMessage = 'Unknown login type: $loginTypeStr';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return _isAuthenticated;
+    } catch (e) {
+      debugPrint('🔴 Biometric login error: $e');
+      _errorMessage = 'Biometric login failed: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   /// Google Sign-In
@@ -207,12 +262,11 @@ class AuthProvider with ChangeNotifier {
         _auth.signOut(),
         _googleSignIn.signOut(),
         FacebookAuth.instance.logOut(),
-        // NOTE: Do NOT clear biometric here so that biometric remains enabled across logout.
-        // _biometricService.clearAll(), // <-- removed
+        // Do NOT clear biometric so it remains enabled across logout
       ]);
+
       _isAuthenticated = false;
       _errorMessage = null;
-      // keep _loginType so biometric flow can know SSO provider if needed
       debugPrint('✅ Logout Successful');
     } catch (e) {
       _errorMessage = 'Logout failed';
@@ -238,3 +292,4 @@ class AuthProvider with ChangeNotifier {
     return await _biometricService.getStoredCredentials();
   }
 }
+//==============================================

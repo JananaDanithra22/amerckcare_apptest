@@ -1,5 +1,3 @@
-// lib/features/auth/screens/enable_biometric_screen.dart
-
 import 'package:amerckcarelogin/features/auth/providers/auth_provider.dart';
 import 'package:amerckcarelogin/features/auth/services/auth_service.dart';
 import 'package:amerckcarelogin/features/auth/services/biometric_service.dart';
@@ -55,7 +53,6 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
     if (authProvider.loginType == LoginType.emailPassword) {
       return Validators.validatePassword(_passwordCtrl.text) == null;
     }
-    // SSO users don't need password
     return true;
   }
 
@@ -66,10 +63,17 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final authService = AuthService(authProvider);
 
-      String? email = authProvider.getCurrentUserEmail();
-      String? password;
-
       final loginType = authProvider.loginType;
+      if (loginType == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Login type not found.')));
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      String email = authProvider.getCurrentUserEmail() ?? '';
+      String? password;
 
       if (loginType == LoginType.emailPassword) {
         password = _passwordCtrl.text;
@@ -81,7 +85,7 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
           return;
         }
 
-        if (email == null) {
+        if (email.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('No logged-in user found.')),
           );
@@ -101,9 +105,9 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
           return;
         }
       } else {
-        // SSO user
-        password = 'SSO'; // placeholder
-        email ??= ''; // fallback empty string if email is null
+        // SSO / Google user
+        password ??= '';
+        email = email.isEmpty ? '' : email;
       }
 
       final isAvailable = await _biometricService.isBiometricAvailable();
@@ -132,13 +136,17 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
         return;
       }
 
-      await _biometricService.enableBiometric(email, password);
+      await _biometricService.enableBiometric(
+        email,
+        password,
+        loginType: loginType,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$bioName enabled successfully')),
         );
-        Navigator.of(context).pop(); // close enable screen
+        Navigator.of(context).pop();
       }
     } catch (e, st) {
       debugPrint('🔴 Error enabling biometric: $e\n$st');
@@ -175,15 +183,12 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
             key: _formKey,
             child: Column(
               children: [
-                // TOP-CENTER ANIMATION 🎞️
                 SizedBox(
                   height: 160,
                   width: 160,
                   child: _buildFingerprintAnimation(),
                 ),
                 const SizedBox(height: 12),
-
-                // INTRO TEXT 📝
                 const Text(
                   "Enable Biometric Login",
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -196,8 +201,6 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),
                 const SizedBox(height: 18),
-
-                // PASSWORD FIELD ONLY FOR EMAIL/PASSWORD USERS
                 if (authProvider.loginType == LoginType.emailPassword) ...[
                   const Align(
                     alignment: Alignment.centerLeft,
@@ -226,8 +229,6 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
                   ),
                   const SizedBox(height: 30),
                 ],
-
-                // ENABLE BUTTON
                 CustomButton(
                   text: "Enable",
                   onPressed:

@@ -207,6 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await _biometricService.enableBiometric(
           _emailCtrl.text.trim(),
           _passwordCtrl.text,
+          loginType: LoginType.emailPassword, // <-- ADD THIS
         );
 
         if (mounted) {
@@ -333,7 +334,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (_emailError != null) {
                             setState(() => _emailError = null);
                           }
-                        }, validator: (value) {  },
+                        },
+                        validator: (value) {},
                       ),
                       const SizedBox(height: 16),
                       const Align(
@@ -360,7 +362,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (_passwordError != null) {
                             setState(() => _passwordError = null);
                           }
-                        }, validator: (value) {  },
+                        },
+                        validator: (value) {},
                       ),
                       const SizedBox(height: 24),
                       CustomButton(
