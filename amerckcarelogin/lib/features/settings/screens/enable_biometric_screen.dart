@@ -53,113 +53,157 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
     if (authProvider.loginType == LoginType.emailPassword) {
       return Validators.validatePassword(_passwordCtrl.text) == null;
     }
-    return true;
+    return true; // For SSO, no password validation needed
   }
+
+
+
 
   Future<void> _enableBiometric() async {
     setState(() => _isLoading = true);
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final authService = AuthService(authProvider);
+
+      // ✅ Wait a moment for auth state to fully sync
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // ✅ DEBUG LOGGING
+      debugPrint('🔍 Enable Biometric Check:');
+      debugPrint('  - isAuthenticated: ${authProvider.isAuthenticated}');
+      debugPrint('  - user email: ${authProvider.user?.email}');
+      debugPrint('  - user uid: ${authProvider.user?.uid}');
+      debugPrint('  - loginType: ${authProvider.loginType}');
 
       final loginType = authProvider.loginType;
+
       if (loginType == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Login type not found.')));
+        _showError('Login type not found. Please sign in again.');
         setState(() => _isLoading = false);
         return;
       }
 
-      String email = authProvider.getCurrentUserEmail() ?? '';
-      String? password;
+      // Get current user info - with better error handling
+      final currentUser = authProvider.user;
+      if (currentUser == null) {
+        debugPrint('🔴 currentUser is null!');
+        _showError('No logged-in user found. Please sign in again.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final email = currentUser.email;
+      final uid = currentUser.uid;
+
+      if (email == null || email.isEmpty) {
+        debugPrint('🔴 email is null or empty!');
+        _showError('User email not found. Please sign in again.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      debugPrint('✅ User verified: $email (UID: $uid)');
+
+      // ✅ Handle email/password separately from SSO
+      String? credentialToStore;
 
       if (loginType == LoginType.emailPassword) {
-        password = _passwordCtrl.text;
-
+        // For email/password: verify password and store it
+        final password = _passwordCtrl.text;
         final passErr = Validators.validatePassword(password);
+
         if (passErr != null) {
           _formKey.currentState?.validate();
           setState(() => _isLoading = false);
           return;
         }
 
-        if (email.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No logged-in user found.')),
+        // Verify credentials by attempting login
+        final authService = AuthService(authProvider);
+        final loginResult = await authService.loginWithOverlay(email, password);
+
+        if (!mounted) return;
+
+        if (!loginResult.success) {
+          final message = AuthErrorParser.getGenericMessage(loginResult.error);
+          _showError(message);
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        credentialToStore = password;
+      } else {
+        // ✅ For SSO (Google/Facebook): verify authentication and wait for state sync
+        await Future.delayed(const Duration(milliseconds: 200));
+
+        if (!authProvider.isAuthenticated || authProvider.user == null) {
+          _showError(
+            'Session expired. Please sign in again with ${loginType == LoginType.google ? 'Google' : 'Facebook'}.',
           );
           setState(() => _isLoading = false);
           return;
         }
 
-        final loginResult = await authService.loginWithOverlay(email, password);
-        if (!mounted) return;
-
-        if (!loginResult.success) {
-          final message = AuthErrorParser.getGenericMessage(loginResult.error);
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(message)));
-          setState(() => _isLoading = false);
-          return;
-        }
-      } else {
-        // SSO / Google user
-        password ??= '';
-        email = email.isEmpty ? '' : email;
+        // Store UID for SSO users (used for verification during biometric login)
+        credentialToStore = uid;
       }
 
+      // Check biometric availability
       final isAvailable = await _biometricService.isBiometricAvailable();
       if (!isAvailable) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Biometric not available on this device.'),
-          ),
-        );
+        _showError('Biometric not available on this device.');
         setState(() => _isLoading = false);
         return;
       }
 
+      // Authenticate with biometrics
       final bioName = await _biometricService.getBiometricTypeName();
       final didAuthenticate = await _biometricService.authenticate(
         reason: 'Scan your $bioName to enable biometric login',
       );
 
       if (!didAuthenticate) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Biometric authentication failed or cancelled.'),
-          ),
-        );
+        _showError('Biometric authentication failed or cancelled.');
         setState(() => _isLoading = false);
         return;
       }
 
+      // Enable biometric with appropriate parameters
       await _biometricService.enableBiometric(
         email,
-        password,
+        credentialToStore,
         loginType: loginType,
       );
 
       if (mounted) {
+        final loginTypeName =
+            loginType == LoginType.emailPassword
+                ? 'password'
+                : (loginType == LoginType.google ? 'Google' : 'Facebook');
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$bioName enabled successfully')),
+          SnackBar(
+            content: Text(
+              '$bioName enabled for $loginTypeName login successfully!',
+            ),
+          ),
         );
         Navigator.of(context).pop();
       }
     } catch (e, st) {
       debugPrint('🔴 Error enabling biometric: $e\n$st');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to enable biometric. Please try again.'),
-          ),
-        );
+        _showError('Failed to enable biometric. Please try again.');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -194,13 +238,18 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  "Make your login easier and more secure.\n"
-                  "Enable fingerprint login to access your account faster.",
+                Text(
+                  authProvider.loginType == LoginType.emailPassword
+                      ? "Make your login easier and more secure.\n"
+                          "Enable biometric login to access your account faster."
+                      : "Enable biometric login for quick access.\n"
+                          "Your ${authProvider.loginType == LoginType.google ? 'Google' : 'Facebook'} account will be remembered securely.",
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.black54),
+                  style: const TextStyle(fontSize: 14, color: Colors.black54),
                 ),
                 const SizedBox(height: 18),
+
+                // Only show password field for email/password users
                 if (authProvider.loginType == LoginType.emailPassword) ...[
                   const Align(
                     alignment: Alignment.centerLeft,
@@ -228,7 +277,37 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
                     ),
                   ),
                   const SizedBox(height: 30),
+                ] else ...[
+                  // For SSO users, show info about secure storage
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          color: Colors.green.shade700,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Your ${authProvider.loginType == LoginType.google ? 'Google' : 'Facebook'} session will be saved securely. You\'ll be logged in automatically after biometric verification.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.green.shade900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
                 ],
+
                 CustomButton(
                   text: "Enable",
                   onPressed:

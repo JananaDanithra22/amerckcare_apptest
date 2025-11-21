@@ -1,4 +1,4 @@
-// lib/features/auth/providers/auth_provider.dart
+// lib/features/auth/providers/auth_provider.dart - COMPLETELY FIXED VERSION
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -21,8 +21,8 @@ class AuthProvider with ChangeNotifier {
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final BiometricService _biometricService = BiometricService();
 
-  bool _isAuthenticated = false;
-  bool get isAuthenticated => _isAuthenticated;
+  // ✅ REMOVED _isAuthenticated - we'll use user != null instead
+  // The stream handles authentication state automatically
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -32,24 +32,76 @@ class AuthProvider with ChangeNotifier {
 
   User? get user => _auth.currentUser;
 
+  // ✅ isAuthenticated now directly checks the current user
+  bool get isAuthenticated => _auth.currentUser != null;
+
   LoginType? _loginType;
   LoginType? get loginType => _loginType;
 
-  bool _biometricTriggered = false; // Prevent multiple popups
+  bool _biometricTriggered = false;
   bool get biometricTriggered => _biometricTriggered;
 
   void setLoginType(LoginType type) {
     _loginType = type;
+    // Persist login type to secure storage for retrieval after app restart
+    _persistLoginType(type);
     notifyListeners();
   }
 
-  /// Constructor - Check if user is already logged in
+  Future<void> _persistLoginType(LoginType type) async {
+    try {
+      await _biometricService.persistLoginType(type.toString().split('.').last);
+    } catch (e) {
+      debugPrint('🔴 Error persisting login type: $e');
+    }
+  }
+
+  Future<void> _loadPersistedLoginType() async {
+    try {
+      final typeStr = await _biometricService.getPersistedLoginType();
+      if (typeStr != null) {
+        switch (typeStr) {
+          case 'emailPassword':
+            _loginType = LoginType.emailPassword;
+            break;
+          case 'google':
+            _loginType = LoginType.google;
+            break;
+          case 'facebook':
+            _loginType = LoginType.facebook;
+            break;
+        }
+        debugPrint('🔐 Loaded persisted login type: $_loginType');
+      }
+    } catch (e) {
+      debugPrint('🔴 Error loading login type: $e');
+    }
+  }
+
+  /// Constructor - Listen to auth state changes
   AuthProvider() {
+    // Load persisted login type first
+    _loadPersistedLoginType();
+
+    // ✅ Listen to auth state changes and notify listeners
     _auth.authStateChanges().listen((User? user) {
-      _isAuthenticated = user != null;
-      notifyListeners();
+      // Add a small delay to ensure Firebase internal state is fully synced
+      Future.delayed(const Duration(milliseconds: 50), () {
+        debugPrint(
+          '🔐 Auth state changed: ${_auth.currentUser?.email ?? "signed out"}',
+        );
+        debugPrint('   Current user: ${_auth.currentUser?.uid}');
+        notifyListeners();
+      });
     });
-    // ⚠️ Do NOT call biometric login here
+
+    // Also check initial auth state
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_auth.currentUser != null) {
+        debugPrint('🔐 Initial auth state: ${_auth.currentUser!.email}');
+        notifyListeners();
+      }
+    });
   }
 
   /// Generic authentication method
@@ -60,17 +112,19 @@ class AuthProvider with ChangeNotifier {
 
     final result = await provider.signIn();
 
-    _isAuthenticated = result.success;
+    // ✅ Don't manually set _isAuthenticated - trust the stream
     _errorMessage = result.error;
     _isLoading = false;
-    notifyListeners();
 
     if (result.success) {
       debugPrint('✅ ${provider.providerName} Sign-In Successful');
+      // Wait a bit for auth state to propagate
+      await Future.delayed(const Duration(milliseconds: 100));
     } else {
       debugPrint('🔴 ${provider.providerName} Sign-In Error: ${result.error}');
     }
 
+    notifyListeners();
     return result.success;
   }
 
@@ -118,14 +172,14 @@ class AuthProvider with ChangeNotifier {
 
     final result = await provider.signUp();
 
-    _isAuthenticated = result.success;
+    // ✅ Don't manually set _isAuthenticated
     _errorMessage = result.error;
     _isLoading = false;
-    notifyListeners();
 
     if (result.success) {
       debugPrint('✅ Email Sign-Up Successful');
       setLoginType(LoginType.emailPassword);
+      await Future.delayed(const Duration(milliseconds: 100));
 
       if (enableBiometric) {
         try {
@@ -141,6 +195,8 @@ class AuthProvider with ChangeNotifier {
     } else {
       debugPrint('🔴 Email Sign-Up Error: ${result.error}');
     }
+
+    notifyListeners();
   }
 
   /// Explicit biometric login trigger
@@ -204,11 +260,29 @@ class AuthProvider with ChangeNotifier {
         case 'google':
           debugPrint('🔐 Attempting Google sign-in for biometric login...');
           await signInWithGoogle();
+
+          // Verify email matches
+          if (!isAuthenticated || getCurrentUserEmail() != email) {
+            _errorMessage = 'Google sign-in failed or account mismatch';
+            await _biometricService.disableBiometric();
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
           break;
 
         case 'facebook':
           debugPrint('🔐 Attempting Facebook sign-in for biometric login...');
           await signInWithFacebook();
+
+          // Verify email matches
+          if (!isAuthenticated || getCurrentUserEmail() != email) {
+            _errorMessage = 'Facebook sign-in failed or account mismatch';
+            await _biometricService.disableBiometric();
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
           break;
 
         default:
@@ -220,7 +294,7 @@ class AuthProvider with ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
-      return _isAuthenticated;
+      return isAuthenticated;
     } catch (e) {
       debugPrint('🔴 Biometric login error: $e');
       _errorMessage = 'Biometric login failed: ${e.toString()}';
@@ -234,7 +308,12 @@ class AuthProvider with ChangeNotifier {
   Future<void> signInWithGoogle() async {
     final provider = google.GoogleAuthProvider();
     final success = await _authenticate(provider);
-    if (success) setLoginType(LoginType.google);
+    if (success) {
+      setLoginType(LoginType.google);
+      // Extra wait to ensure auth state is fully propagated
+      await Future.delayed(const Duration(milliseconds: 200));
+      debugPrint('✅ Google auth complete. User: ${_auth.currentUser?.email}');
+    }
   }
 
   /// Sign out from Google only
@@ -251,7 +330,12 @@ class AuthProvider with ChangeNotifier {
   Future<void> signInWithFacebook() async {
     final provider = facebook.FacebookAuthProvider();
     final success = await _authenticate(provider);
-    if (success) setLoginType(LoginType.facebook);
+    if (success) {
+      setLoginType(LoginType.facebook);
+      // Extra wait to ensure auth state is fully propagated
+      await Future.delayed(const Duration(milliseconds: 200));
+      debugPrint('✅ Facebook auth complete. User: ${_auth.currentUser?.email}');
+    }
   }
 
   /// Full logout
@@ -266,7 +350,11 @@ class AuthProvider with ChangeNotifier {
         FacebookAuth.instance.logOut(),
       ]);
 
-      _isAuthenticated = false;
+      // Clear login type
+      _loginType = null;
+      await _biometricService.clearPersistedLoginType();
+
+      // ✅ Don't manually set _isAuthenticated - stream will handle it
       _errorMessage = null;
       debugPrint('✅ Logout Successful');
     } catch (e) {

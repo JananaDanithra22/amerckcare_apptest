@@ -30,13 +30,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   final BiometricService _biometricService = BiometricService();
   bool _isBiometricLoading = false;
+  bool _showBiometricButton = false;
+  String _biometricButtonText = 'Login with Biometric';
 
   @override
   void initState() {
     super.initState();
-    // Try biometric login on app start
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _tryBiometricLogin();
+      _checkBiometricAvailability();
     });
   }
 
@@ -47,24 +48,41 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  /// Attempt automatic biometric login on app start
-  Future<void> _tryBiometricLogin() async {
-    // Check if biometric is enabled
+  /// Check if we should show the biometric login button
+  Future<void> _checkBiometricAvailability() async {
     final isBiometricEnabled = await _biometricService.isBiometricEnabled();
     if (!isBiometricEnabled) return;
 
-    // Check if biometric is available on device
     final isBiometricAvailable = await _biometricService.isBiometricAvailable();
     if (!isBiometricAvailable) return;
 
-    // Get stored credentials
     final credentials = await _biometricService.getStoredCredentials();
     if (credentials == null) return;
 
+    final biometricName = await _biometricService.getBiometricTypeName();
+
+    if (mounted) {
+      setState(() {
+        _showBiometricButton = true;
+        _biometricButtonText = 'Login with $biometricName';
+      });
+    }
+  }
+
+  // lib/features/auth/screens/login_screen.dart - FIXED VERSION
+
+  // Replace the _handleBiometricLogin method with this corrected version:
+
+  Future<void> _handleBiometricLogin() async {
     setState(() => _isBiometricLoading = true);
 
     try {
-      // Authenticate with biometrics
+      final credentials = await _biometricService.getStoredCredentials();
+      if (credentials == null) {
+        _showError('No stored credentials found');
+        return;
+      }
+
       final biometricName = await _biometricService.getBiometricTypeName();
       final authenticated = await _biometricService.authenticate(
         reason: 'Authenticate with $biometricName to login',
@@ -75,36 +93,70 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // Login with stored credentials
+      final loginTypeStr = credentials['loginType'] ?? 'emailPassword';
+      final email = credentials['email']!;
+      final storedData = credentials['password'];
+
       final auth = Provider.of<AuthProvider>(context, listen: false);
-      await auth.login(credentials['email']!, credentials['password']!);
+
+      switch (loginTypeStr) {
+        case 'emailPassword':
+          if (storedData == null) {
+            _showError('Stored credentials incomplete');
+            return;
+          }
+          await auth.login(email, storedData);
+          break;
+
+        case 'google':
+          // ✅ FIXED: Trigger fresh Google Sign-In instead of checking session
+          debugPrint('🔐 Triggering Google Sign-In for biometric login...');
+          await auth.signInWithGoogle();
+
+          // Verify the sign-in succeeded and email matches
+          if (!auth.isAuthenticated || auth.getCurrentUserEmail() != email) {
+            _showError(
+              'Google sign-in failed or email mismatch. Please try again.',
+            );
+            await _biometricService.disableBiometric();
+            setState(() => _showBiometricButton = false);
+            return;
+          }
+          break;
+
+        case 'facebook':
+          // ✅ FIXED: Trigger fresh Facebook Sign-In
+          debugPrint('🔐 Triggering Facebook Sign-In for biometric login...');
+          await auth.signInWithFacebook();
+
+          // Verify the sign-in succeeded and email matches
+          if (!auth.isAuthenticated || auth.getCurrentUserEmail() != email) {
+            _showError(
+              'Facebook sign-in failed or email mismatch. Please try again.',
+            );
+            await _biometricService.disableBiometric();
+            setState(() => _showBiometricButton = false);
+            return;
+          }
+          break;
+
+        default:
+          _showError('Unknown login type');
+          return;
+      }
 
       if (!mounted) return;
 
       if (auth.isAuthenticated) {
         Navigator.pushReplacementNamed(context, '/home');
       } else {
-        // Biometric credentials are invalid, clear them
         await _biometricService.disableBiometric();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Biometric login failed. Please login manually.'),
-            ),
-          );
-        }
+        _showError('Biometric login failed. Please login manually.');
+        setState(() => _showBiometricButton = false);
       }
     } catch (e) {
       debugPrint('🔴 Error in biometric login: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Biometric authentication error. Please login manually.',
-            ),
-          ),
-        );
-      }
+      _showError('Biometric authentication error. Please login manually.');
     } finally {
       if (mounted) {
         setState(() => _isBiometricLoading = false);
@@ -112,15 +164,21 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
   /// Manual login with email and password
   Future<void> _loginEmail() async {
-    // Clear previous errors
     setState(() {
       _emailError = null;
       _passwordError = null;
     });
 
-    // Validate fields
     final emailValidation = Validators.validateEmail(_emailCtrl.text.trim());
     final passwordValidation = Validators.validatePassword(_passwordCtrl.text);
 
@@ -135,7 +193,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final authService = AuthService(auth);
 
-    // Use service for login
     final result = await authService.loginWithOverlay(
       _emailCtrl.text.trim(),
       _passwordCtrl.text,
@@ -144,13 +201,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result.success) {
-      // Prompt user to enable biometrics if supported and not already asked
       await _promptBiometricEnrollment();
-
-      // Navigate to home
       Navigator.pushReplacementNamed(context, '/home');
     } else {
-      // Parse errors using utility
       final errors = AuthErrorParser.parse(result.error);
       setState(() {
         _emailError = errors['email'];
@@ -161,15 +214,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// Prompt user to enable biometric login after successful manual login
   Future<void> _promptBiometricEnrollment() async {
-    // Check if we've already shown this prompt
     final hasBeenShown = await _biometricService.hasBiometricPromptBeenShown();
     if (hasBeenShown) return;
 
-    // Check if biometric is already enabled
     final isEnabled = await _biometricService.isBiometricEnabled();
     if (isEnabled) return;
 
-    // Check if biometric is available
     final isBiometricAvailable = await _biometricService.isBiometricAvailable();
     if (!isBiometricAvailable) {
       await _biometricService.markBiometricPromptShown();
@@ -207,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await _biometricService.enableBiometric(
           _emailCtrl.text.trim(),
           _passwordCtrl.text,
-          loginType: LoginType.emailPassword, // <-- ADD THIS
+          loginType: LoginType.emailPassword,
         );
 
         if (mounted) {
@@ -226,7 +276,6 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } else {
-      // User declined, mark as shown so we don't ask again
       await _biometricService.markBiometricPromptShown();
     }
   }
@@ -238,6 +287,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result.success) {
+      await _promptBiometricEnrollmentForSSO(LoginType.google);
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -255,6 +305,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result.success) {
+      await _promptBiometricEnrollmentForSSO(LoginType.facebook);
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -265,10 +316,79 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _loginWithApple(AuthProvider auth) async {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Apple sign-in coming soon')));
+  /// Prompt biometric enrollment for SSO logins (Google/Facebook)
+  Future<void> _promptBiometricEnrollmentForSSO(LoginType loginType) async {
+    final hasBeenShown = await _biometricService.hasBiometricPromptBeenShown();
+    if (hasBeenShown) return;
+
+    final isEnabled = await _biometricService.isBiometricEnabled();
+    if (isEnabled) return;
+
+    final isBiometricAvailable = await _biometricService.isBiometricAvailable();
+    if (!isBiometricAvailable) {
+      await _biometricService.markBiometricPromptShown();
+      return;
+    }
+
+    if (!mounted) return;
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final email = auth.getCurrentUserEmail();
+    final uid = auth.user?.uid;
+
+    if (email == null || uid == null) return;
+
+    final biometricName = await _biometricService.getBiometricTypeName();
+    final providerName = loginType == LoginType.google ? 'Google' : 'Facebook';
+
+    final enable = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Enable $biometricName Login?'),
+            content: Text(
+              'Use $biometricName to quickly access your $providerName account next time. Your session will be remembered securely.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Not Now'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Enable'),
+              ),
+            ],
+          ),
+    );
+
+    if (enable == true) {
+      try {
+        await _biometricService.enableBiometric(
+          email,
+          uid,
+          loginType: loginType,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$biometricName login enabled successfully!'),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('🔴 Error enabling biometric: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to enable biometric login.')),
+          );
+        }
+      }
+    } else {
+      await _biometricService.markBiometricPromptShown();
+    }
   }
 
   @override
@@ -300,10 +420,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const SizedBox(height: 40),
 
                     // Show loading indicator during biometric authentication
                     if (_isBiometricLoading) ...[
-                      const SizedBox(height: 40),
                       const CircularProgressIndicator(),
                       const SizedBox(height: 16),
                       const Text(
@@ -312,7 +432,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 40),
                     ] else ...[
-                      const SizedBox(height: 40),
                       const Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -376,23 +495,32 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: UIConstants.buttonRadius,
                       ),
                       const SizedBox(height: 16),
-                      CustomButton(
-                        text: 'Sign in with Google',
-                        onPressed:
-                            auth.isLoading
-                                ? null
-                                : () => _loginWithGoogle(auth),
-                        backgroundColor: UIConstants.darkBlue,
-                        width: UIConstants.buttonWidth,
-                        height: UIConstants.buttonHeight,
-                        borderRadius: UIConstants.buttonRadius,
-                        icon: Image.asset(
-                          'assets/images/Glogo.png',
-                          height: 24,
-                          width: 24,
+
+                      // Biometric Login Button (only visible when enabled)
+                      if (_showBiometricButton) ...[
+                        CustomButton(
+                          text: _biometricButtonText,
+                          onPressed: _handleBiometricLogin,
+                          backgroundColor: Color.fromRGBO(
+                            0,
+                            80,
+                            149,
+                            1,
+                          ), // #146EB7
+
+                          width: UIConstants.buttonWidth,
+                          height: UIConstants.buttonHeight,
+                          borderRadius: UIConstants.buttonRadius,
+                          icon: const Icon(
+                            Icons.fingerprint,
+                            color: Color.fromRGBO(255, 255, 255, 1),
+                            size: 24,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 16),
+                      ],
+
+                      const SizedBox(height: 8),
                       const Text(
                         'or login with',
                         style: TextStyle(color: Colors.black54, fontSize: 14),
@@ -401,6 +529,38 @@ class _LoginScreenState extends State<LoginScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          // Google Login Button (white background with original G colors)
+                          GestureDetector(
+                            onTap:
+                                auth.isLoading
+                                    ? null
+                                    : () => _loginWithGoogle(auth),
+                            child: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.3),
+                                    spreadRadius: 1,
+                                    blurRadius: 3,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Image.asset(
+                                  'assets/images/Glogo.png',
+                                  height: 27,
+                                  width: 27,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          // Facebook Login Button
                           GestureDetector(
                             onTap:
                                 auth.isLoading
@@ -415,26 +575,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               child: const Icon(
                                 Icons.facebook,
-                                color: Colors.white,
-                                size: 27,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          GestureDetector(
-                            onTap:
-                                auth.isLoading
-                                    ? null
-                                    : () => _loginWithApple(auth),
-                            child: Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: Colors.black,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.apple,
                                 color: Colors.white,
                                 size: 27,
                               ),

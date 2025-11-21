@@ -17,6 +17,36 @@ class BiometricService {
   static const String _keyStoredPassword = 'stored_password';
   static const String _keyLoginType = 'stored_login_type';
   static const String _keyBiometricPromptShown = 'biometric_prompt_shown';
+  static const String _keyPersistedLoginType = 'persisted_login_type';
+
+  /// Persist login type (separate from biometric storage)
+  Future<void> persistLoginType(String loginType) async {
+    try {
+      await _secureStorage.write(key: _keyPersistedLoginType, value: loginType);
+      debugPrint('✅ Persisted login type: $loginType');
+    } catch (e) {
+      debugPrint('🔴 Error persisting login type: $e');
+    }
+  }
+
+  /// Get persisted login type
+  Future<String?> getPersistedLoginType() async {
+    try {
+      return await _secureStorage.read(key: _keyPersistedLoginType);
+    } catch (e) {
+      debugPrint('🔴 Error reading persisted login type: $e');
+      return null;
+    }
+  }
+
+  /// Clear persisted login type (call on logout)
+  Future<void> clearPersistedLoginType() async {
+    try {
+      await _secureStorage.delete(key: _keyPersistedLoginType);
+    } catch (e) {
+      debugPrint('🔴 Error clearing persisted login type: $e');
+    }
+  }
 
   /// Check if device supports biometric authentication
   Future<bool> isDeviceSupported() async {
