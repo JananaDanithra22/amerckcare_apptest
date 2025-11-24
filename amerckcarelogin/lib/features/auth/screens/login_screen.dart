@@ -1,4 +1,4 @@
-// lib/features/auth/screens/login_screen.dart
+// lib/features/auth/screens/login_screen.dart - UID-BASED VERSION
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -69,10 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // lib/features/auth/screens/login_screen.dart - FIXED VERSION
-
-  // Replace the _handleBiometricLogin method with this corrected version:
-
+  /// ✅ UPDATED: Handle biometric login with UID-based verification
   Future<void> _handleBiometricLogin() async {
     setState(() => _isBiometricLoading = true);
 
@@ -94,50 +91,64 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final loginTypeStr = credentials['loginType'] ?? 'emailPassword';
-      final email = credentials['email']!;
-      final storedData = credentials['password'];
+      final identifier = credentials['identifier']!; // Email or UID
+      final credential = credentials['credential']; // Password or UID
 
       final auth = Provider.of<AuthProvider>(context, listen: false);
 
+      debugPrint('🔐 Biometric login attempt:');
+      debugPrint('   Login type: $loginTypeStr');
+      debugPrint('   Identifier: $identifier');
+
       switch (loginTypeStr) {
         case 'emailPassword':
-          if (storedData == null) {
+          // ✅ For email/password: identifier = email, credential = password
+          if (credential == null) {
             _showError('Stored credentials incomplete');
             return;
           }
-          await auth.login(email, storedData);
+          await auth.login(identifier, credential);
           break;
 
         case 'google':
-          // ✅ FIXED: Trigger fresh Google Sign-In instead of checking session
-          debugPrint('🔐 Triggering Google Sign-In for biometric login...');
-          await auth.signInWithGoogle();
-
-          // Verify the sign-in succeeded and email matches
-          if (!auth.isAuthenticated || auth.getCurrentUserEmail() != email) {
-            _showError(
-              'Google sign-in failed or email mismatch. Please try again.',
-            );
-            await _biometricService.disableBiometric();
-            setState(() => _showBiometricButton = false);
-            return;
-          }
-          break;
-
         case 'facebook':
-          // ✅ FIXED: Trigger fresh Facebook Sign-In
-          debugPrint('🔐 Triggering Facebook Sign-In for biometric login...');
-          await auth.signInWithFacebook();
+          // ✅ For SSO: identifier = UID, credential = UID
+          debugPrint(
+            '🔐 Re-authenticating ${loginTypeStr.toUpperCase()} user...',
+          );
 
-          // Verify the sign-in succeeded and email matches
-          if (!auth.isAuthenticated || auth.getCurrentUserEmail() != email) {
-            _showError(
-              'Facebook sign-in failed or email mismatch. Please try again.',
-            );
+          if (loginTypeStr == 'google') {
+            await auth.signInWithGoogle();
+          } else {
+            await auth.signInWithFacebook();
+          }
+
+          // Wait for auth state to sync
+          await Future.delayed(const Duration(milliseconds: 300));
+
+          // Verify the sign-in succeeded
+          if (!auth.isAuthenticated) {
+            _showError('Sign-in failed. Please try again.');
             await _biometricService.disableBiometric();
             setState(() => _showBiometricButton = false);
             return;
           }
+
+          // ✅ SIMPLIFIED: Just verify UID matches (no email comparison)
+          final currentUid = auth.user?.uid;
+
+          if (currentUid != identifier) {
+            debugPrint('🔴 UID mismatch:');
+            debugPrint('   Stored UID: $identifier');
+            debugPrint('   Current UID: $currentUid');
+
+            _showError('Account mismatch. Please login manually.');
+            await _biometricService.disableBiometric();
+            setState(() => _showBiometricButton = false);
+            return;
+          }
+
+          debugPrint('✅ UID verified: $currentUid');
           break;
 
         default:
@@ -148,6 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (auth.isAuthenticated) {
+        debugPrint('✅ Biometric login successful');
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         await _biometricService.disableBiometric();
@@ -316,7 +328,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Prompt biometric enrollment for SSO logins (Google/Facebook)
+  /// ✅ UPDATED: Prompt biometric enrollment for SSO logins (uses UID)
   Future<void> _promptBiometricEnrollmentForSSO(LoginType loginType) async {
     final hasBeenShown = await _biometricService.hasBiometricPromptBeenShown();
     if (hasBeenShown) return;
@@ -333,10 +345,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final email = auth.getCurrentUserEmail();
-    final uid = auth.user?.uid;
 
-    if (email == null || uid == null) return;
+    // ✅ Get UID (always available for SSO users)
+    final user = auth.user;
+    if (user == null) return;
+
+    final uid = user.uid;
 
     final biometricName = await _biometricService.getBiometricTypeName();
     final providerName = loginType == LoginType.google ? 'Google' : 'Facebook';
@@ -365,9 +379,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (enable == true) {
       try {
+        // ✅ For SSO: Store UID as both identifier and credential
         await _biometricService.enableBiometric(
-          email,
-          uid,
+          uid, // identifier
+          uid, // credential
           loginType: loginType,
         );
 
@@ -501,13 +516,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         CustomButton(
                           text: _biometricButtonText,
                           onPressed: _handleBiometricLogin,
-                          backgroundColor: Color.fromRGBO(
-                            0,
-                            80,
-                            149,
-                            1,
-                          ), // #146EB7
-
+                          backgroundColor: Color.fromRGBO(0, 80, 149, 1),
                           width: UIConstants.buttonWidth,
                           height: UIConstants.buttonHeight,
                           borderRadius: UIConstants.buttonRadius,
@@ -529,7 +538,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Google Login Button (white background with original G colors)
                           GestureDetector(
                             onTap:
                                 auth.isLoading
@@ -560,7 +568,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(width: 20),
-                          // Facebook Login Button
                           GestureDetector(
                             onTap:
                                 auth.isLoading
@@ -584,9 +591,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                       TextButton(
-                        onPressed: () {
-                          // TODO: Navigate to forgot password screen
-                        },
+                        onPressed: () {},
                         child: const Text(
                           'Forgot Password?',
                           style: TextStyle(

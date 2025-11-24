@@ -9,12 +9,14 @@ class BiometricService {
   final LocalAuthentication _localAuth = LocalAuthentication();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
-  bool _isAuthenticating = false; // ✅ Prevent concurrent auth
+  bool _isAuthenticating = false;
 
-  // Storage keys
+  // ✅ UPDATED: Changed storage keys to be more semantic
   static const String _keyBiometricEnabled = 'biometric_enabled';
-  static const String _keyStoredEmail = 'stored_email';
-  static const String _keyStoredPassword = 'stored_password';
+  static const String _keyStoredIdentifier =
+      'stored_identifier'; // Email or UID
+  static const String _keyStoredCredential =
+      'stored_credential'; // Password or UID
   static const String _keyLoginType = 'stored_login_type';
   static const String _keyBiometricPromptShown = 'biometric_prompt_shown';
   static const String _keyPersistedLoginType = 'persisted_login_type';
@@ -87,7 +89,7 @@ class BiometricService {
 
   /// Authenticate user with biometrics
   Future<bool> authenticate({String? reason}) async {
-    if (_isAuthenticating) return false; // Prevent multiple concurrent auth
+    if (_isAuthenticating) return false;
     _isAuthenticating = true;
 
     try {
@@ -143,16 +145,17 @@ class BiometricService {
     }
   }
 
-  /// Enable biometric login and store credentials securely
-  /// For SSO users, password can be empty/null
+  /// ✅ UPDATED: Enable biometric login
+  /// For emailPassword: identifier = email, credential = password
+  /// For SSO (Google/Facebook): identifier = uid, credential = uid
   Future<void> enableBiometric(
-    String email,
-    String? password, {
+    String identifier,
+    String? credential, {
     required LoginType loginType,
   }) async {
     try {
       await _secureStorage.write(key: _keyBiometricEnabled, value: 'true');
-      await _secureStorage.write(key: _keyStoredEmail, value: email);
+      await _secureStorage.write(key: _keyStoredIdentifier, value: identifier);
 
       // Store login type
       await _secureStorage.write(
@@ -160,15 +163,24 @@ class BiometricService {
         value: loginType.toString().split('.').last,
       );
 
-      // Store password only for email/password users
-      if (loginType == LoginType.emailPassword && password != null) {
-        await _secureStorage.write(key: _keyStoredPassword, value: password);
-      } else {
-        await _secureStorage.delete(key: _keyStoredPassword);
+      // Store credential based on login type
+      if (loginType == LoginType.emailPassword && credential != null) {
+        // For email/password: store the password
+        await _secureStorage.write(
+          key: _keyStoredCredential,
+          value: credential,
+        );
+      } else if (loginType == LoginType.google ||
+          loginType == LoginType.facebook) {
+        // ✅ For SSO: store UID as credential for verification
+        await _secureStorage.write(
+          key: _keyStoredCredential,
+          value: credential ?? identifier,
+        );
       }
 
       await markBiometricPromptShown();
-      debugPrint('✅ Biometric login enabled for $loginType');
+      debugPrint('✅ Biometric enabled: $loginType | Identifier: $identifier');
     } catch (e) {
       debugPrint('🔴 Error enabling biometric: $e');
       rethrow;
@@ -179,8 +191,8 @@ class BiometricService {
   Future<void> disableBiometric() async {
     try {
       await _secureStorage.delete(key: _keyBiometricEnabled);
-      await _secureStorage.delete(key: _keyStoredEmail);
-      await _secureStorage.delete(key: _keyStoredPassword);
+      await _secureStorage.delete(key: _keyStoredIdentifier);
+      await _secureStorage.delete(key: _keyStoredCredential);
       await _secureStorage.delete(key: _keyLoginType);
       debugPrint('✅ Biometric login disabled');
     } catch (e) {
@@ -189,19 +201,20 @@ class BiometricService {
     }
   }
 
-  /// Get stored credentials (after successful biometric authentication)
+  /// ✅ UPDATED: Get stored credentials
+  /// Returns: identifier (email or UID), credential (password or UID), loginType
   Future<Map<String, String?>?> getStoredCredentials() async {
     try {
-      final email = await _secureStorage.read(key: _keyStoredEmail);
-      final password = await _secureStorage.read(key: _keyStoredPassword);
+      final identifier = await _secureStorage.read(key: _keyStoredIdentifier);
+      final credential = await _secureStorage.read(key: _keyStoredCredential);
       final loginTypeStr = await _secureStorage.read(key: _keyLoginType);
 
-      if (email == null || loginTypeStr == null) return null;
+      if (identifier == null || loginTypeStr == null) return null;
 
       return {
-        'email': email,
-        'password': password,
-        'loginType': loginTypeStr, // 'emailPassword', 'google', 'facebook'
+        'identifier': identifier,
+        'credential': credential,
+        'loginType': loginTypeStr,
       };
     } catch (e) {
       debugPrint('🔴 Error reading stored credentials: $e');
@@ -235,8 +248,8 @@ class BiometricService {
   Future<void> resetAll() async {
     try {
       await _secureStorage.delete(key: _keyBiometricEnabled);
-      await _secureStorage.delete(key: _keyStoredEmail);
-      await _secureStorage.delete(key: _keyStoredPassword);
+      await _secureStorage.delete(key: _keyStoredIdentifier);
+      await _secureStorage.delete(key: _keyStoredCredential);
       await _secureStorage.delete(key: _keyLoginType);
       await _secureStorage.delete(key: _keyBiometricPromptShown);
       debugPrint('✅ All biometric data reset');

@@ -1,3 +1,5 @@
+// lib/features/settings/screens/enable_biometric_screen.dart - UID-BASED VERSION
+
 import 'package:amerckcarelogin/features/auth/providers/auth_provider.dart';
 import 'package:amerckcarelogin/features/auth/services/auth_service.dart';
 import 'package:amerckcarelogin/features/auth/services/biometric_service.dart';
@@ -53,25 +55,76 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
     if (authProvider.loginType == LoginType.emailPassword) {
       return Validators.validatePassword(_passwordCtrl.text) == null;
     }
-    return true; // For SSO, no password validation needed
+    return true;
   }
 
+  /// ✅ Separate method for SSO re-authentication
+  Future<bool> _reauthenticateSSO(LoginType loginType) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authService = AuthService(authProvider);
 
+    try {
+      // Show explanation to user
+      final proceed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => AlertDialog(
+              title: Text(
+                'Verify ${loginType == LoginType.google ? 'Google' : 'Facebook'} Account',
+              ),
+              content: Text(
+                'To enable biometric login, we need to verify your ${loginType == LoginType.google ? 'Google' : 'Facebook'} account one more time.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Continue'),
+                ),
+              ],
+            ),
+      );
 
+      if (proceed != true) return false;
 
+      // Re-authenticate with the provider
+      final result =
+          loginType == LoginType.google
+              ? await authService.googleSignInWithOverlay()
+              : await authService.facebookSignInWithOverlay();
+
+      if (!result.success) {
+        _showError('Re-authentication failed. Please try again.');
+        return false;
+      }
+
+      // Wait for auth state to fully sync
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      return authProvider.isAuthenticated;
+    } catch (e) {
+      debugPrint('🔴 SSO re-authentication error: $e');
+      return false;
+    }
+  }
+
+  /// ✅ UPDATED: Enable biometric using UID for SSO users
   Future<void> _enableBiometric() async {
     setState(() => _isLoading = true);
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      // ✅ Wait a moment for auth state to fully sync
-      await Future.delayed(const Duration(milliseconds: 300));
+      // Add delay for auth state sync
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      // ✅ DEBUG LOGGING
       debugPrint('🔍 Enable Biometric Check:');
       debugPrint('  - isAuthenticated: ${authProvider.isAuthenticated}');
-      debugPrint('  - user email: ${authProvider.user?.email}');
+      debugPrint('  - user: ${authProvider.user}');
       debugPrint('  - user uid: ${authProvider.user?.uid}');
       debugPrint('  - loginType: ${authProvider.loginType}');
 
@@ -83,7 +136,7 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
         return;
       }
 
-      // Get current user info - with better error handling
+      // Get current user info
       final currentUser = authProvider.user;
       if (currentUser == null) {
         debugPrint('🔴 currentUser is null!');
@@ -92,23 +145,19 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
         return;
       }
 
-      final email = currentUser.email;
       final uid = currentUser.uid;
-
-      if (email == null || email.isEmpty) {
-        debugPrint('🔴 email is null or empty!');
-        _showError('User email not found. Please sign in again.');
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      debugPrint('✅ User verified: $email (UID: $uid)');
-
-      // ✅ Handle email/password separately from SSO
+      String identifier;
       String? credentialToStore;
 
       if (loginType == LoginType.emailPassword) {
-        // For email/password: verify password and store it
+        // ✅ Email/Password: Use email as identifier, password as credential
+        if (currentUser.email == null || currentUser.email!.isEmpty) {
+          _showError('Email is required for password-based login.');
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        identifier = currentUser.email!;
         final password = _passwordCtrl.text;
         final passErr = Validators.validatePassword(password);
 
@@ -120,7 +169,10 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
 
         // Verify credentials by attempting login
         final authService = AuthService(authProvider);
-        final loginResult = await authService.loginWithOverlay(email, password);
+        final loginResult = await authService.loginWithOverlay(
+          identifier,
+          password,
+        );
 
         if (!mounted) return;
 
@@ -133,19 +185,34 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
 
         credentialToStore = password;
       } else {
-        // ✅ For SSO (Google/Facebook): verify authentication and wait for state sync
-        await Future.delayed(const Duration(milliseconds: 200));
+        // ✅ SSO: Use UID as both identifier and credential
+        identifier = uid;
 
-        if (!authProvider.isAuthenticated || authProvider.user == null) {
+        debugPrint(
+          '🔐 Re-authenticating SSO user before enabling biometric...',
+        );
+        debugPrint('   UID: $uid');
+
+        final reauthSuccess = await _reauthenticateSSO(loginType);
+
+        if (!reauthSuccess) {
           _showError(
-            'Session expired. Please sign in again with ${loginType == LoginType.google ? 'Google' : 'Facebook'}.',
+            'Re-authentication failed. Please try enabling biometric again.',
           );
           setState(() => _isLoading = false);
           return;
         }
 
-        // Store UID for SSO users (used for verification during biometric login)
-        credentialToStore = uid;
+        // After successful re-auth, get fresh user data
+        final freshUser = authProvider.user;
+        if (freshUser == null) {
+          _showError('Authentication failed. Please try again.');
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        // ✅ Store UID as credential for SSO users
+        credentialToStore = freshUser.uid;
       }
 
       // Check biometric availability
@@ -168,9 +235,16 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
         return;
       }
 
-      // Enable biometric with appropriate parameters
+      // ✅ Enable biometric with proper identifier and credential
+      debugPrint('💾 Storing biometric credentials:');
+      debugPrint('   Identifier: $identifier');
+      debugPrint(
+        '   Credential: ${credentialToStore != null ? '[SET]' : '[NULL]'}',
+      );
+      debugPrint('   LoginType: $loginType');
+
       await _biometricService.enableBiometric(
-        email,
+        identifier,
         credentialToStore,
         loginType: loginType,
       );
@@ -186,6 +260,8 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
             content: Text(
               '$bioName enabled for $loginTypeName login successfully!',
             ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
         );
         Navigator.of(context).pop();
@@ -201,9 +277,13 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -278,27 +358,24 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
                   ),
                   const SizedBox(height: 30),
                 ] else ...[
-                  // For SSO users, show info about secure storage
+                  // For SSO users
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.green.shade50,
+                      color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.shade200),
+                      border: Border.all(color: Colors.blue.shade200),
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.check_circle_outline,
-                          color: Colors.green.shade700,
-                        ),
+                        Icon(Icons.info_outline, color: Colors.blue.shade700),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Your ${authProvider.loginType == LoginType.google ? 'Google' : 'Facebook'} session will be saved securely. You\'ll be logged in automatically after biometric verification.',
+                            'You\'ll be asked to verify your ${authProvider.loginType == LoginType.google ? 'Google' : 'Facebook'} account one more time to ensure secure biometric setup.',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.green.shade900,
+                              color: Colors.blue.shade900,
                             ),
                           ),
                         ),
