@@ -1,4 +1,4 @@
-// lib/features/auth/screens/login_screen.dart - UID-BASED VERSION
+// lib/features/auth/screens/login_screen.dart - PRODUCTION-READY VERSION
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -48,7 +48,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  /// Check if we should show the biometric login button
   Future<void> _checkBiometricAvailability() async {
     final isBiometricEnabled = await _biometricService.isBiometricEnabled();
     if (!isBiometricEnabled) return;
@@ -69,7 +68,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// ✅ UPDATED: Handle biometric login with UID-based verification
+  /// ✅ PRODUCTION VERSION: Always re-authenticate SSO users
+  /// This ensures biometric works even after logout
   Future<void> _handleBiometricLogin() async {
     setState(() => _isBiometricLoading = true);
 
@@ -91,64 +91,104 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final loginTypeStr = credentials['loginType'] ?? 'emailPassword';
-      final identifier = credentials['identifier']!; // Email or UID
-      final credential = credentials['credential']; // Password or UID
+      final storedUid = credentials['uid']!;
+      final storedEmail = credentials['email'];
+      final storedPassword = credentials['password'];
 
       final auth = Provider.of<AuthProvider>(context, listen: false);
 
       debugPrint('🔐 Biometric login attempt:');
       debugPrint('   Login type: $loginTypeStr');
-      debugPrint('   Identifier: $identifier');
+      debugPrint('   Stored UID: $storedUid');
 
       switch (loginTypeStr) {
         case 'emailPassword':
-          // ✅ For email/password: identifier = email, credential = password
-          if (credential == null) {
+          // ✅ Email/Password: Use stored credentials to login
+          if (storedEmail == null || storedPassword == null) {
             _showError('Stored credentials incomplete');
             return;
           }
-          await auth.login(identifier, credential);
+
+          debugPrint('🔐 Logging in with email/password...');
+          await auth.login(storedEmail, storedPassword);
+
+          // Verify login succeeded
+          if (!auth.isAuthenticated) {
+            _showError('Login failed. Please try again manually.');
+            await _biometricService.disableBiometric();
+            setState(() => _showBiometricButton = false);
+            return;
+          }
           break;
 
         case 'google':
-        case 'facebook':
-          // ✅ For SSO: identifier = UID, credential = UID
-          debugPrint(
-            '🔐 Re-authenticating ${loginTypeStr.toUpperCase()} user...',
-          );
+          // ✅ KEY CHANGE: Always trigger fresh Google Sign-In
+          debugPrint('🔐 Triggering Google Sign-In...');
 
-          if (loginTypeStr == 'google') {
-            await auth.signInWithGoogle();
-          } else {
-            await auth.signInWithFacebook();
-          }
+          await auth.signInWithGoogle();
 
-          // Wait for auth state to sync
-          await Future.delayed(const Duration(milliseconds: 300));
+          // Wait for auth to complete
+          await Future.delayed(const Duration(milliseconds: 500));
 
-          // Verify the sign-in succeeded
+          // Verify the sign-in succeeded and UID matches
           if (!auth.isAuthenticated) {
-            _showError('Sign-in failed. Please try again.');
-            await _biometricService.disableBiometric();
-            setState(() => _showBiometricButton = false);
+            _showError(
+              'Google sign-in was cancelled or failed. Please try again.',
+            );
+            setState(() => _isBiometricLoading = false);
             return;
           }
 
-          // ✅ SIMPLIFIED: Just verify UID matches (no email comparison)
           final currentUid = auth.user?.uid;
-
-          if (currentUid != identifier) {
+          if (currentUid != storedUid) {
             debugPrint('🔴 UID mismatch:');
-            debugPrint('   Stored UID: $identifier');
+            debugPrint('   Stored UID: $storedUid');
             debugPrint('   Current UID: $currentUid');
 
-            _showError('Account mismatch. Please login manually.');
+            _showError(
+              'You signed in with a different Google account. Biometric disabled.',
+            );
             await _biometricService.disableBiometric();
             setState(() => _showBiometricButton = false);
             return;
           }
 
-          debugPrint('✅ UID verified: $currentUid');
+          debugPrint('✅ Google UID verified: $currentUid');
+          break;
+
+        case 'facebook':
+          // ✅ KEY CHANGE: Always trigger fresh Facebook Sign-In
+          debugPrint('🔐 Triggering Facebook Sign-In...');
+
+          await auth.signInWithFacebook();
+
+          // Wait for auth to complete
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          // Verify the sign-in succeeded and UID matches
+          if (!auth.isAuthenticated) {
+            _showError(
+              'Facebook sign-in was cancelled or failed. Please try again.',
+            );
+            setState(() => _isBiometricLoading = false);
+            return;
+          }
+
+          final currentUid = auth.user?.uid;
+          if (currentUid != storedUid) {
+            debugPrint('🔴 UID mismatch:');
+            debugPrint('   Stored UID: $storedUid');
+            debugPrint('   Current UID: $currentUid');
+
+            _showError(
+              'You signed in with a different Facebook account. Biometric disabled.',
+            );
+            await _biometricService.disableBiometric();
+            setState(() => _showBiometricButton = false);
+            return;
+          }
+
+          debugPrint('✅ Facebook UID verified: $currentUid');
           break;
 
         default:
@@ -158,12 +198,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
+      // Final check before navigation
       if (auth.isAuthenticated) {
         debugPrint('✅ Biometric login successful');
         Navigator.pushReplacementNamed(context, '/home');
       } else {
+        _showError('Authentication failed. Please try again.');
         await _biometricService.disableBiometric();
-        _showError('Biometric login failed. Please login manually.');
         setState(() => _showBiometricButton = false);
       }
     } catch (e) {
@@ -178,13 +219,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showError(String message) {
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 4)),
+      );
     }
   }
 
-  /// Manual login with email and password
   Future<void> _loginEmail() async {
     setState(() {
       _emailError = null;
@@ -224,7 +264,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Prompt user to enable biometric login after successful manual login
   Future<void> _promptBiometricEnrollment() async {
     final hasBeenShown = await _biometricService.hasBiometricPromptBeenShown();
     if (hasBeenShown) return;
@@ -248,9 +287,7 @@ class _LoginScreenState extends State<LoginScreen> {
       builder:
           (context) => AlertDialog(
             title: Text('Enable $biometricName Login?'),
-            content: Text(
-              'Use $biometricName for faster login next time. You can change this in settings.',
-            ),
+            content: Text('Use $biometricName for faster login next time.'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -266,26 +303,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (enable == true) {
       try {
-        await _biometricService.enableBiometric(
-          _emailCtrl.text.trim(),
-          _passwordCtrl.text,
-          loginType: LoginType.emailPassword,
-        );
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('$biometricName login enabled successfully!'),
-            ),
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        final uid = auth.user?.uid;
+        if (uid != null) {
+          await _biometricService.enableBiometric(
+            _emailCtrl.text.trim(),
+            _passwordCtrl.text,
+            uid,
+            loginType: LoginType.emailPassword,
           );
+
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('$biometricName enabled!')));
+          }
         }
       } catch (e) {
         debugPrint('🔴 Error enabling biometric: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to enable biometric login.')),
-          );
-        }
       }
     } else {
       await _biometricService.markBiometricPromptShown();
@@ -328,7 +363,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// ✅ UPDATED: Prompt biometric enrollment for SSO logins (uses UID)
   Future<void> _promptBiometricEnrollmentForSSO(LoginType loginType) async {
     final hasBeenShown = await _biometricService.hasBiometricPromptBeenShown();
     if (hasBeenShown) return;
@@ -345,12 +379,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
-
-    // ✅ Get UID (always available for SSO users)
     final user = auth.user;
     if (user == null) return;
-
-    final uid = user.uid;
 
     final biometricName = await _biometricService.getBiometricTypeName();
     final providerName = loginType == LoginType.google ? 'Google' : 'Facebook';
@@ -362,7 +392,7 @@ class _LoginScreenState extends State<LoginScreen> {
           (context) => AlertDialog(
             title: Text('Enable $biometricName Login?'),
             content: Text(
-              'Use $biometricName to quickly access your $providerName account next time. Your session will be remembered securely.',
+              'Next time, just scan your $biometricName and we\'ll sign you in with $providerName automatically!',
             ),
             actions: [
               TextButton(
@@ -379,27 +409,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (enable == true) {
       try {
-        // ✅ For SSO: Store UID as both identifier and credential
         await _biometricService.enableBiometric(
-          uid, // identifier
-          uid, // credential
+          user.email ?? 'no-email',
+          null,
+          user.uid,
           loginType: loginType,
         );
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('$biometricName login enabled successfully!'),
-            ),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('$biometricName enabled!')));
         }
       } catch (e) {
         debugPrint('🔴 Error enabling biometric: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to enable biometric login.')),
-          );
-        }
       }
     } else {
       await _biometricService.markBiometricPromptShown();
@@ -437,7 +460,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    // Show loading indicator during biometric authentication
                     if (_isBiometricLoading) ...[
                       const CircularProgressIndicator(),
                       const SizedBox(height: 16),
@@ -511,7 +533,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Biometric Login Button (only visible when enabled)
                       if (_showBiometricButton) ...[
                         CustomButton(
                           text: _biometricButtonText,
@@ -522,7 +543,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: UIConstants.buttonRadius,
                           icon: const Icon(
                             Icons.fingerprint,
-                            color: Color.fromRGBO(255, 255, 255, 1),
+                            color: Colors.white,
                             size: 24,
                           ),
                         ),
@@ -595,7 +616,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text(
                           'Forgot Password?',
                           style: TextStyle(
-                            color: Color.fromARGB(255, 0, 0, 0),
+                            color: Colors.black,
                             fontWeight: FontWeight.bold,
                             decoration: TextDecoration.underline,
                           ),
@@ -613,9 +634,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           GestureDetector(
-                            onTap: () {
-                              Navigator.pushNamed(context, '/signup');
-                            },
+                            onTap:
+                                () => Navigator.pushNamed(context, '/signup'),
                             child: const Text(
                               "Sign Up",
                               style: TextStyle(

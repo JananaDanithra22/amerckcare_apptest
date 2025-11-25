@@ -1,4 +1,4 @@
-// lib/features/auth/providers/auth_provider.dart - COMPLETELY FIXED VERSION
+// lib/features/auth/providers/auth_provider.dart - FIXED
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,15 +14,10 @@ import '../services/biometric_service.dart';
 
 enum LoginType { emailPassword, google, facebook }
 
-/// AuthProvider - Only handles state management
-/// Business logic moved to AuthService
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final BiometricService _biometricService = BiometricService();
-
-  // ✅ REMOVED _isAuthenticated - we'll use user != null instead
-  // The stream handles authentication state automatically
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -31,8 +26,6 @@ class AuthProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   User? get user => _auth.currentUser;
-
-  // ✅ isAuthenticated now directly checks the current user
   bool get isAuthenticated => _auth.currentUser != null;
 
   LoginType? _loginType;
@@ -43,7 +36,6 @@ class AuthProvider with ChangeNotifier {
 
   void setLoginType(LoginType type) {
     _loginType = type;
-    // Persist login type to secure storage for retrieval after app restart
     _persistLoginType(type);
     notifyListeners();
   }
@@ -78,14 +70,10 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Constructor - Listen to auth state changes
   AuthProvider() {
-    // Load persisted login type first
     _loadPersistedLoginType();
 
-    // ✅ Listen to auth state changes and notify listeners
     _auth.authStateChanges().listen((User? user) {
-      // Add a small delay to ensure Firebase internal state is fully synced
       Future.delayed(const Duration(milliseconds: 50), () {
         debugPrint(
           '🔐 Auth state changed: ${_auth.currentUser?.email ?? "signed out"}',
@@ -95,7 +83,6 @@ class AuthProvider with ChangeNotifier {
       });
     });
 
-    // Also check initial auth state
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_auth.currentUser != null) {
         debugPrint('🔐 Initial auth state: ${_auth.currentUser!.email}');
@@ -104,7 +91,6 @@ class AuthProvider with ChangeNotifier {
     });
   }
 
-  /// Generic authentication method
   Future<bool> _authenticate(IAuthProvider provider) async {
     _isLoading = true;
     _errorMessage = null;
@@ -112,13 +98,11 @@ class AuthProvider with ChangeNotifier {
 
     final result = await provider.signIn();
 
-    // ✅ Don't manually set _isAuthenticated - trust the stream
     _errorMessage = result.error;
     _isLoading = false;
 
     if (result.success) {
       debugPrint('✅ ${provider.providerName} Sign-In Successful');
-      // Wait a bit for auth state to propagate
       await Future.delayed(const Duration(milliseconds: 100));
     } else {
       debugPrint('🔴 ${provider.providerName} Sign-In Error: ${result.error}');
@@ -128,7 +112,6 @@ class AuthProvider with ChangeNotifier {
     return result.success;
   }
 
-  /// Email/Password login
   Future<void> login(
     String email,
     String password, {
@@ -144,18 +127,22 @@ class AuthProvider with ChangeNotifier {
 
     if (success && enableBiometric) {
       try {
-        await _biometricService.enableBiometric(
-          email,
-          password,
-          loginType: LoginType.emailPassword,
-        );
+        // ✅ FIXED: Include UID
+        final uid = _auth.currentUser?.uid;
+        if (uid != null) {
+          await _biometricService.enableBiometric(
+            email,
+            password,
+            uid,
+            loginType: LoginType.emailPassword,
+          );
+        }
       } catch (e) {
         debugPrint('🔴 Error enabling biometric: $e');
       }
     }
   }
 
-  /// Email/Password signup
   Future<void> signup(
     String emailAddress,
     String password, {
@@ -172,7 +159,6 @@ class AuthProvider with ChangeNotifier {
 
     final result = await provider.signUp();
 
-    // ✅ Don't manually set _isAuthenticated
     _errorMessage = result.error;
     _isLoading = false;
 
@@ -183,11 +169,16 @@ class AuthProvider with ChangeNotifier {
 
       if (enableBiometric) {
         try {
-          await _biometricService.enableBiometric(
-            emailAddress,
-            password,
-            loginType: LoginType.emailPassword,
-          );
+          // ✅ FIXED: Include UID
+          final uid = _auth.currentUser?.uid;
+          if (uid != null) {
+            await _biometricService.enableBiometric(
+              emailAddress,
+              password,
+              uid,
+              loginType: LoginType.emailPassword,
+            );
+          }
         } catch (e) {
           debugPrint('🔴 Error enabling biometric: $e');
         }
@@ -199,14 +190,12 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Explicit biometric login trigger
   Future<bool> triggerBiometricLogin() async {
     if (_biometricTriggered) return false;
     _biometricTriggered = true;
     return await loginWithBiometrics();
   }
 
-  /// Login with biometrics
   Future<bool> loginWithBiometrics() async {
     _isLoading = true;
     _errorMessage = null;
@@ -222,7 +211,7 @@ class AuthProvider with ChangeNotifier {
       }
 
       final credentials = await _biometricService.getStoredCredentials();
-      if (credentials == null || credentials['email'] == null) {
+      if (credentials == null) {
         _errorMessage = 'No stored credentials found';
         _isLoading = false;
         notifyListeners();
@@ -241,14 +230,15 @@ class AuthProvider with ChangeNotifier {
       }
 
       final loginTypeStr = credentials['loginType'] ?? 'emailPassword';
-      final email = credentials['email']!;
+      final storedUid = credentials['uid'];
+      final email = credentials['email'];
       final password = credentials['password'];
 
       debugPrint('🔐 Biometric auth successful. Login type: $loginTypeStr');
 
       switch (loginTypeStr) {
         case 'emailPassword':
-          if (password == null) {
+          if (email == null || password == null) {
             _errorMessage = 'Stored credentials incomplete';
             _isLoading = false;
             notifyListeners();
@@ -258,32 +248,22 @@ class AuthProvider with ChangeNotifier {
           break;
 
         case 'google':
-          debugPrint('🔐 Attempting Google sign-in for biometric login...');
-          await signInWithGoogle();
-
-          // Verify email matches
-          if (!isAuthenticated || getCurrentUserEmail() != email) {
-            _errorMessage = 'Google sign-in failed or account mismatch';
-            await _biometricService.disableBiometric();
-            _isLoading = false;
-            notifyListeners();
-            return false;
-          }
-          break;
-
         case 'facebook':
-          debugPrint('🔐 Attempting Facebook sign-in for biometric login...');
-          await signInWithFacebook();
-
-          // Verify email matches
-          if (!isAuthenticated || getCurrentUserEmail() != email) {
-            _errorMessage = 'Facebook sign-in failed or account mismatch';
-            await _biometricService.disableBiometric();
+          // ✅ Check if session is still valid
+          if (isAuthenticated && _auth.currentUser?.uid == storedUid) {
+            debugPrint('✅ Valid session found. UID matches: $storedUid');
             _isLoading = false;
             notifyListeners();
-            return false;
+            return true;
           }
-          break;
+
+          // Session expired
+          debugPrint('⚠️ Session expired for $loginTypeStr user');
+          _errorMessage = 'Your session expired. Please login manually.';
+          await _biometricService.disableBiometric();
+          _isLoading = false;
+          notifyListeners();
+          return false;
 
         default:
           _errorMessage = 'Unknown login type: $loginTypeStr';
@@ -304,19 +284,16 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Google Sign-In
   Future<void> signInWithGoogle() async {
     final provider = google.GoogleAuthProvider();
     final success = await _authenticate(provider);
     if (success) {
       setLoginType(LoginType.google);
-      // Extra wait to ensure auth state is fully propagated
       await Future.delayed(const Duration(milliseconds: 200));
       debugPrint('✅ Google auth complete. User: ${_auth.currentUser?.email}');
     }
   }
 
-  /// Sign out from Google only
   Future<void> signOutGoogle() async {
     try {
       await _googleSignIn.signOut();
@@ -326,19 +303,16 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Facebook Sign-In
   Future<void> signInWithFacebook() async {
     final provider = facebook.FacebookAuthProvider();
     final success = await _authenticate(provider);
     if (success) {
       setLoginType(LoginType.facebook);
-      // Extra wait to ensure auth state is fully propagated
       await Future.delayed(const Duration(milliseconds: 200));
       debugPrint('✅ Facebook auth complete. User: ${_auth.currentUser?.email}');
     }
   }
 
-  /// Full logout
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();
@@ -350,11 +324,9 @@ class AuthProvider with ChangeNotifier {
         FacebookAuth.instance.logOut(),
       ]);
 
-      // Clear login type
       _loginType = null;
       await _biometricService.clearPersistedLoginType();
 
-      // ✅ Don't manually set _isAuthenticated - stream will handle it
       _errorMessage = null;
       debugPrint('✅ Logout Successful');
     } catch (e) {
