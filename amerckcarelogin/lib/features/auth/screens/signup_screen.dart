@@ -118,12 +118,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  Future<void> _signupWithApple(AuthProvider auth) async {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Apple sign-up coming soon')));
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
@@ -172,6 +166,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         setState(() => _emailError = null);
                       }
                     },
+                    validator: (value) {},
                   ),
                   const SizedBox(height: 16),
                   const Align(
@@ -200,6 +195,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         setState(() => _passwordError = null);
                       }
                     },
+                    validator: (value) {},
                   ),
                   const SizedBox(height: 16),
                   const Align(
@@ -228,32 +224,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         setState(() => _confirmError = null);
                       }
                     },
+                    validator: (value) {},
                   ),
                   const SizedBox(height: 24),
                   CustomButton(
                     text: 'Sign Up',
                     onPressed: _signupEmail,
+                    isLoading: auth.isLoading,
                     backgroundColor: UIConstants.primaryBlue,
                     width: UIConstants.buttonWidth,
                     height: UIConstants.buttonHeight,
                     borderRadius: UIConstants.buttonRadius,
                   ),
                   const SizedBox(height: 16),
-                  CustomButton(
-                    text: 'Sign up with Google',
-                    onPressed:
-                        auth.isLoading ? null : () => _signupWithGoogle(auth),
-                    backgroundColor: UIConstants.darkBlue,
-                    width: UIConstants.buttonWidth,
-                    height: UIConstants.buttonHeight,
-                    borderRadius: UIConstants.buttonRadius,
-                    icon: Image.asset(
-                      'assets/images/Glogo.png',
-                      height: 24,
-                      width: 24,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
                   const Text(
                     'or sign up with',
                     style: TextStyle(color: Colors.black54, fontSize: 14),
@@ -262,6 +246,36 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      GestureDetector(
+                        onTap:
+                            auth.isLoading
+                                ? null
+                                : () => _signupWithGoogle(auth),
+                        child: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.3),
+                                spreadRadius: 1,
+                                blurRadius: 3,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Image.asset(
+                              'assets/images/Glogo.png',
+                              height: 27,
+                              width: 27,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 20),
                       GestureDetector(
                         onTap:
                             auth.isLoading
@@ -276,26 +290,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                           child: const Icon(
                             Icons.facebook,
-                            color: Colors.white,
-                            size: 27,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      GestureDetector(
-                        onTap:
-                            auth.isLoading
-                                ? null
-                                : () => _signupWithApple(auth),
-                        child: Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.apple,
                             color: Colors.white,
                             size: 27,
                           ),

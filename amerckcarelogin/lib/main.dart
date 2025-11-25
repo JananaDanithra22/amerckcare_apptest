@@ -7,6 +7,7 @@ import 'config/routes.dart';
 import 'config/theme.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'shared/widgets/loading_overlay.dart'; // <- your overlay (singleton)
+import 'features/settings/screens/settings_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
