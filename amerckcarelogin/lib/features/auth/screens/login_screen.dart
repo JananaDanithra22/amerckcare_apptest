@@ -1,4 +1,4 @@
-// lib/features/auth/screens/login_screen.dart - PRODUCTION-READY VERSION
+// lib/features/auth/screens/login_screen.dart - FIXED VERSION
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -37,7 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkBiometricAvailability();
+      _checkAuthenticationStatus();
     });
   }
 
@@ -46,6 +46,23 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
+  }
+
+  /// ✅ KEY FIX: Check if user is already logged in
+  /// If yes, navigate to home immediately
+  /// If no, show biometric button if available
+  Future<void> _checkAuthenticationStatus() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+
+    // ✅ If user is already authenticated, go to home
+    if (auth.isAuthenticated) {
+      debugPrint('✅ User already logged in. Navigating to home...');
+      Navigator.pushReplacementNamed(context, '/home');
+      return;
+    }
+
+    // ✅ User is NOT logged in, check biometric availability
+    await _checkBiometricAvailability();
   }
 
   Future<void> _checkBiometricAvailability() async {
