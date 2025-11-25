@@ -270,7 +270,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result.success) {
-      await _promptBiometricEnrollment();
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       final errors = AuthErrorParser.parse(result.error);
@@ -281,69 +280,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _promptBiometricEnrollment() async {
-    final hasBeenShown = await _biometricService.hasBiometricPromptBeenShown();
-    if (hasBeenShown) return;
-
-    final isEnabled = await _biometricService.isBiometricEnabled();
-    if (isEnabled) return;
-
-    final isBiometricAvailable = await _biometricService.isBiometricAvailable();
-    if (!isBiometricAvailable) {
-      await _biometricService.markBiometricPromptShown();
-      return;
-    }
-
-    if (!mounted) return;
-
-    final biometricName = await _biometricService.getBiometricTypeName();
-
-    final enable = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Enable $biometricName Login?'),
-            content: Text('Use $biometricName for faster login next time.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Not Now'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Enable'),
-              ),
-            ],
-          ),
-    );
-
-    if (enable == true) {
-      try {
-        final auth = Provider.of<AuthProvider>(context, listen: false);
-        final uid = auth.user?.uid;
-        if (uid != null) {
-          await _biometricService.enableBiometric(
-            _emailCtrl.text.trim(),
-            _passwordCtrl.text,
-            uid,
-            loginType: LoginType.emailPassword,
-          );
-
-          if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('$biometricName enabled!')));
-          }
-        }
-      } catch (e) {
-        debugPrint('🔴 Error enabling biometric: $e');
-      }
-    } else {
-      await _biometricService.markBiometricPromptShown();
-    }
-  }
-
   Future<void> _loginWithGoogle(AuthProvider auth) async {
     final authService = AuthService(auth);
     final result = await authService.googleSignInWithOverlay();
@@ -351,7 +287,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result.success) {
-      await _promptBiometricEnrollmentForSSO(LoginType.google);
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -369,7 +304,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result.success) {
-      await _promptBiometricEnrollmentForSSO(LoginType.facebook);
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -377,72 +311,6 @@ class _LoginScreenState extends State<LoginScreen> {
           content: Text(AuthErrorParser.getGenericMessage(result.error)),
         ),
       );
-    }
-  }
-
-  Future<void> _promptBiometricEnrollmentForSSO(LoginType loginType) async {
-    final hasBeenShown = await _biometricService.hasBiometricPromptBeenShown();
-    if (hasBeenShown) return;
-
-    final isEnabled = await _biometricService.isBiometricEnabled();
-    if (isEnabled) return;
-
-    final isBiometricAvailable = await _biometricService.isBiometricAvailable();
-    if (!isBiometricAvailable) {
-      await _biometricService.markBiometricPromptShown();
-      return;
-    }
-
-    if (!mounted) return;
-
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final user = auth.user;
-    if (user == null) return;
-
-    final biometricName = await _biometricService.getBiometricTypeName();
-    final providerName = loginType == LoginType.google ? 'Google' : 'Facebook';
-
-    final enable = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Enable $biometricName Login?'),
-            content: Text(
-              'Next time, just scan your $biometricName and we\'ll sign you in with $providerName automatically!',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Not Now'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Enable'),
-              ),
-            ],
-          ),
-    );
-
-    if (enable == true) {
-      try {
-        await _biometricService.enableBiometric(
-          user.email ?? 'no-email',
-          null,
-          user.uid,
-          loginType: loginType,
-        );
-
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('$biometricName enabled!')));
-        }
-      } catch (e) {
-        debugPrint('🔴 Error enabling biometric: $e');
-      }
-    } else {
-      await _biometricService.markBiometricPromptShown();
     }
   }
 
