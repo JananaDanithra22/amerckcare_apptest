@@ -1,4 +1,4 @@
-// lib/features/auth/screens/login_screen.dart - FIXED VERSION
+// lib/features/auth/screens/login_screen.dart - PRODUCTION-READY VERSION
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +11,7 @@ import '../services/biometric_service.dart';
 import '../widgets/background_line_art.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
+import '../../../shared/widgets/loading_overlay.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -29,7 +30,6 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _passwordError;
 
   final BiometricService _biometricService = BiometricService();
-  bool _isBiometricLoading = false;
   bool _showBiometricButton = false;
   String _biometricButtonText = 'Login with Biometric';
 
@@ -37,7 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkAuthenticationStatus();
+      _checkBiometricAvailability();
     });
   }
 
@@ -46,23 +46,6 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
-  }
-
-  /// ✅ KEY FIX: Check if user is already logged in
-  /// If yes, navigate to home immediately
-  /// If no, show biometric button if available
-  Future<void> _checkAuthenticationStatus() async {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-
-    // ✅ If user is already authenticated, go to home
-    if (auth.isAuthenticated) {
-      debugPrint('✅ User already logged in. Navigating to home...');
-      Navigator.pushReplacementNamed(context, '/home');
-      return;
-    }
-
-    // ✅ User is NOT logged in, check biometric availability
-    await _checkBiometricAvailability();
   }
 
   Future<void> _checkBiometricAvailability() async {
@@ -88,24 +71,32 @@ class _LoginScreenState extends State<LoginScreen> {
   /// ✅ PRODUCTION VERSION: Always re-authenticate SSO users
   /// This ensures biometric works even after logout
   Future<void> _handleBiometricLogin() async {
-    setState(() => _isBiometricLoading = true);
+    // ✅ Use global overlay instead of local loading state
+    GlobalOverlayController().show('Authenticating with biometrics...');
 
     try {
       final credentials = await _biometricService.getStoredCredentials();
       if (credentials == null) {
+        GlobalOverlayController().hide();
         _showError('No stored credentials found');
         return;
       }
 
       final biometricName = await _biometricService.getBiometricTypeName();
+
+      // Hide overlay temporarily for biometric scan
+      GlobalOverlayController().hide();
+
       final authenticated = await _biometricService.authenticate(
         reason: 'Authenticate with $biometricName to login',
       );
 
       if (!authenticated) {
-        setState(() => _isBiometricLoading = false);
         return;
       }
+
+      // Show overlay again after biometric success
+      GlobalOverlayController().show('Signing in...');
 
       final loginTypeStr = credentials['loginType'] ?? 'emailPassword';
       final storedUid = credentials['uid']!;
@@ -131,6 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // Verify login succeeded
           if (!auth.isAuthenticated) {
+            GlobalOverlayController().hide();
             _showError('Login failed. Please try again manually.');
             await _biometricService.disableBiometric();
             setState(() => _showBiometricButton = false);
@@ -149,15 +141,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // Verify the sign-in succeeded and UID matches
           if (!auth.isAuthenticated) {
+            GlobalOverlayController().hide();
             _showError(
               'Google sign-in was cancelled or failed. Please try again.',
             );
-            setState(() => _isBiometricLoading = false);
             return;
           }
 
           final currentUid = auth.user?.uid;
           if (currentUid != storedUid) {
+            GlobalOverlayController().hide();
             debugPrint('🔴 UID mismatch:');
             debugPrint('   Stored UID: $storedUid');
             debugPrint('   Current UID: $currentUid');
@@ -184,15 +177,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // Verify the sign-in succeeded and UID matches
           if (!auth.isAuthenticated) {
+            GlobalOverlayController().hide();
             _showError(
               'Facebook sign-in was cancelled or failed. Please try again.',
             );
-            setState(() => _isBiometricLoading = false);
             return;
           }
 
           final currentUid = auth.user?.uid;
           if (currentUid != storedUid) {
+            GlobalOverlayController().hide();
             debugPrint('🔴 UID mismatch:');
             debugPrint('   Stored UID: $storedUid');
             debugPrint('   Current UID: $currentUid');
@@ -209,6 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
           break;
 
         default:
+          GlobalOverlayController().hide();
           _showError('Unknown login type');
           return;
       }
@@ -217,20 +212,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Final check before navigation
       if (auth.isAuthenticated) {
+        GlobalOverlayController().hide();
         debugPrint('✅ Biometric login successful');
         Navigator.pushReplacementNamed(context, '/home');
       } else {
+        GlobalOverlayController().hide();
         _showError('Authentication failed. Please try again.');
         await _biometricService.disableBiometric();
         setState(() => _showBiometricButton = false);
       }
     } catch (e) {
+      GlobalOverlayController().hide();
       debugPrint('🔴 Error in biometric login: $e');
       _showError('Biometric authentication error. Please login manually.');
-    } finally {
-      if (mounted) {
-        setState(() => _isBiometricLoading = false);
-      }
     }
   }
 
@@ -270,6 +264,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result.success) {
+      await _promptBiometricEnrollment();
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       final errors = AuthErrorParser.parse(result.error);
@@ -280,6 +275,69 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _promptBiometricEnrollment() async {
+    final hasBeenShown = await _biometricService.hasBiometricPromptBeenShown();
+    if (hasBeenShown) return;
+
+    final isEnabled = await _biometricService.isBiometricEnabled();
+    if (isEnabled) return;
+
+    final isBiometricAvailable = await _biometricService.isBiometricAvailable();
+    if (!isBiometricAvailable) {
+      await _biometricService.markBiometricPromptShown();
+      return;
+    }
+
+    if (!mounted) return;
+
+    final biometricName = await _biometricService.getBiometricTypeName();
+
+    final enable = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Enable $biometricName Login?'),
+            content: Text('Use $biometricName for faster login next time.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Not Now'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Enable'),
+              ),
+            ],
+          ),
+    );
+
+    if (enable == true) {
+      try {
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        final uid = auth.user?.uid;
+        if (uid != null) {
+          await _biometricService.enableBiometric(
+            _emailCtrl.text.trim(),
+            _passwordCtrl.text,
+            uid,
+            loginType: LoginType.emailPassword,
+          );
+
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('$biometricName enabled!')));
+          }
+        }
+      } catch (e) {
+        debugPrint('🔴 Error enabling biometric: $e');
+      }
+    } else {
+      await _biometricService.markBiometricPromptShown();
+    }
+  }
+
   Future<void> _loginWithGoogle(AuthProvider auth) async {
     final authService = AuthService(auth);
     final result = await authService.googleSignInWithOverlay();
@@ -287,6 +345,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result.success) {
+      await _promptBiometricEnrollmentForSSO(LoginType.google);
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -304,6 +363,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result.success) {
+      await _promptBiometricEnrollmentForSSO(LoginType.facebook);
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -311,6 +371,72 @@ class _LoginScreenState extends State<LoginScreen> {
           content: Text(AuthErrorParser.getGenericMessage(result.error)),
         ),
       );
+    }
+  }
+
+  Future<void> _promptBiometricEnrollmentForSSO(LoginType loginType) async {
+    final hasBeenShown = await _biometricService.hasBiometricPromptBeenShown();
+    if (hasBeenShown) return;
+
+    final isEnabled = await _biometricService.isBiometricEnabled();
+    if (isEnabled) return;
+
+    final isBiometricAvailable = await _biometricService.isBiometricAvailable();
+    if (!isBiometricAvailable) {
+      await _biometricService.markBiometricPromptShown();
+      return;
+    }
+
+    if (!mounted) return;
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final user = auth.user;
+    if (user == null) return;
+
+    final biometricName = await _biometricService.getBiometricTypeName();
+    final providerName = loginType == LoginType.google ? 'Google' : 'Facebook';
+
+    final enable = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Enable $biometricName Login?'),
+            content: Text(
+              'Next time, just scan your $biometricName and we\'ll sign you in with $providerName automatically!',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Not Now'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Enable'),
+              ),
+            ],
+          ),
+    );
+
+    if (enable == true) {
+      try {
+        await _biometricService.enableBiometric(
+          user.email ?? 'no-email',
+          null,
+          user.uid,
+          loginType: loginType,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('$biometricName enabled!')));
+        }
+      } catch (e) {
+        debugPrint('🔴 Error enabling biometric: $e');
+      }
+    } else {
+      await _biometricService.markBiometricPromptShown();
     }
   }
 
@@ -345,195 +471,184 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    if (_isBiometricLoading) ...[
-                      const CircularProgressIndicator(),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Authenticating with biometrics...',
-                        style: TextStyle(color: Colors.black54),
-                      ),
-                      const SizedBox(height: 40),
-                    ] else ...[
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Email',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Email',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      CustomTextField(
-                        controller: _emailCtrl,
-                        hintText: 'Enter your email',
-                        errorText: _emailError,
-                        keyboardType: TextInputType.emailAddress,
-                        onChanged: (value) {
-                          if (_emailError != null) {
-                            setState(() => _emailError = null);
-                          }
-                        },
-                        validator: (value) {},
-                      ),
-                      const SizedBox(height: 16),
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Password',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    CustomTextField(
+                      controller: _emailCtrl,
+                      hintText: 'Enter your email',
+                      errorText: _emailError,
+                      keyboardType: TextInputType.emailAddress,
+                      onChanged: (value) {
+                        if (_emailError != null) {
+                          setState(() => _emailError = null);
+                        }
+                      },
+                      validator: (value) {},
+                    ),
+                    const SizedBox(height: 16),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Password',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      CustomTextField(
-                        controller: _passwordCtrl,
-                        hintText: 'Enter your password',
-                        errorText: _passwordError,
-                        obscureText: _obscurePassword,
-                        onToggleVisibility: () {
-                          setState(() => _obscurePassword = !_obscurePassword);
-                        },
-                        onChanged: (value) {
-                          if (_passwordError != null) {
-                            setState(() => _passwordError = null);
-                          }
-                        },
-                        validator: (value) {},
-                      ),
-                      const SizedBox(height: 24),
+                    ),
+                    const SizedBox(height: 6),
+                    CustomTextField(
+                      controller: _passwordCtrl,
+                      hintText: 'Enter your password',
+                      errorText: _passwordError,
+                      obscureText: _obscurePassword,
+                      onToggleVisibility: () {
+                        setState(() => _obscurePassword = !_obscurePassword);
+                      },
+                      onChanged: (value) {
+                        if (_passwordError != null) {
+                          setState(() => _passwordError = null);
+                        }
+                      },
+                      validator: (value) {},
+                    ),
+                    const SizedBox(height: 24),
+                    CustomButton(
+                      text: 'Sign In',
+                      onPressed: _loginEmail,
+                      isLoading: auth.isLoading,
+                      backgroundColor: const Color.fromRGBO(28, 138, 229, 1),
+                      width: UIConstants.buttonWidth,
+                      height: UIConstants.buttonHeight,
+                      borderRadius: UIConstants.buttonRadius,
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (_showBiometricButton) ...[
                       CustomButton(
-                        text: 'Sign In',
-                        onPressed: _loginEmail,
-                        isLoading: auth.isLoading,
-                        backgroundColor: const Color.fromRGBO(28, 138, 229, 1),
+                        text: _biometricButtonText,
+                        onPressed: _handleBiometricLogin,
+                        backgroundColor: Color.fromRGBO(0, 80, 149, 1),
                         width: UIConstants.buttonWidth,
                         height: UIConstants.buttonHeight,
                         borderRadius: UIConstants.buttonRadius,
-                      ),
-                      const SizedBox(height: 16),
-
-                      if (_showBiometricButton) ...[
-                        CustomButton(
-                          text: _biometricButtonText,
-                          onPressed: _handleBiometricLogin,
-                          backgroundColor: Color.fromRGBO(0, 80, 149, 1),
-                          width: UIConstants.buttonWidth,
-                          height: UIConstants.buttonHeight,
-                          borderRadius: UIConstants.buttonRadius,
-                          icon: const Icon(
-                            Icons.fingerprint,
-                            color: Colors.white,
-                            size: 24,
-                          ),
+                        icon: const Icon(
+                          Icons.fingerprint,
+                          color: Colors.white,
+                          size: 24,
                         ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      const SizedBox(height: 8),
-                      const Text(
-                        'or login with',
-                        style: TextStyle(color: Colors.black54, fontSize: 14),
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          GestureDetector(
-                            onTap:
-                                auth.isLoading
-                                    ? null
-                                    : () => _loginWithGoogle(auth),
-                            child: Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.3),
-                                    spreadRadius: 1,
-                                    blurRadius: 3,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Image.asset(
-                                  'assets/images/Glogo.png',
-                                  height: 27,
-                                  width: 27,
+                    ],
+
+                    const SizedBox(height: 8),
+                    const Text(
+                      'or login with',
+                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap:
+                              auth.isLoading
+                                  ? null
+                                  : () => _loginWithGoogle(auth),
+                          child: Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.3),
+                                  spreadRadius: 1,
+                                  blurRadius: 3,
+                                  offset: const Offset(0, 2),
                                 ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Image.asset(
+                                'assets/images/Glogo.png',
+                                height: 27,
+                                width: 27,
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 20),
-                          GestureDetector(
-                            onTap:
-                                auth.isLoading
-                                    ? null
-                                    : () => _loginWithFacebook(auth),
-                            child: Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1877F2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.facebook,
-                                color: Colors.white,
-                                size: 27,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text(
-                          'Forgot Password?',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline,
                           ),
                         ),
+                        const SizedBox(width: 20),
+                        GestureDetector(
+                          onTap:
+                              auth.isLoading
+                                  ? null
+                                  : () => _loginWithFacebook(auth),
+                          child: Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1877F2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.facebook,
+                              color: Colors.white,
+                              size: 27,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () {},
+                      child: const Text(
+                        'Forgot Password?',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            "New here? ",
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          "New here? ",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Color.fromARGB(133, 0, 0, 0),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.pushNamed(context, '/signup'),
+                          child: const Text(
+                            "Sign Up",
                             style: TextStyle(
                               fontSize: 16,
-                              color: Color.fromARGB(133, 0, 0, 0),
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                              decoration: TextDecoration.underline,
                             ),
                           ),
-                          GestureDetector(
-                            onTap:
-                                () => Navigator.pushNamed(context, '/signup'),
-                            child: const Text(
-                              "Sign Up",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
