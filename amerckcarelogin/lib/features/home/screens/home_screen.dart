@@ -37,10 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder:
           (context) => AlertDialog(
             title: const Text('Logout'),
-            content: const Text(
-              'Are you sure you want to logout?\n\n'
-              'Note: If you have biometric login enabled, it will remain active for quick sign-in.',
-            ),
+            content: const Text('Are you sure you want to logout?\n\n'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),

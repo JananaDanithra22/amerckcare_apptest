@@ -34,3 +34,4 @@ flutter:
     - assets/images/Glogo.png
     - assets/images/signlogo.png
     - assets/Fingerprint Success.json
+    - assets/loading.json
