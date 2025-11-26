@@ -1,13 +1,35 @@
-// lib/features/home/screens/home_screen.dart
+// lib/features/home/screens/home_screen.dart - WITH SESSION MONITORING
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../auth/services/biometric_service.dart';
 import '../../../config/routes.dart';
+import '../../../core/utils/session_manager.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    // ✅ Start session monitoring when user enters home screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SessionManager().startSession();
+      debugPrint('✅ Home screen loaded - session monitoring active');
+    });
+  }
+
+  @override
+  void dispose() {
+    // Session will continue running until logout
+    super.dispose();
+  }
 
   Future<void> _handleLogout(BuildContext context, AuthProvider auth) async {
     final confirm = await showDialog<bool>(
@@ -16,7 +38,8 @@ class HomeScreen extends StatelessWidget {
           (context) => AlertDialog(
             title: const Text('Logout'),
             content: const Text(
-              'Are you sure you want to logout?\n\nNote: If you have biometric login enabled, it will remain active for quick sign-in.',
+              'Are you sure you want to logout?\n\n'
+              'Note: If you have biometric login enabled, it will remain active for quick sign-in.',
             ),
             actions: [
               TextButton(
@@ -36,6 +59,9 @@ class HomeScreen extends StatelessWidget {
 
     if (confirm != true) return;
 
+    // ✅ Stop session monitoring on manual logout
+    SessionManager().stopSession();
+
     await auth.logout();
 
     if (context.mounted) {
@@ -48,7 +74,6 @@ class HomeScreen extends StatelessWidget {
     final auth = Provider.of<AuthProvider>(context);
     final userEmail = auth.getCurrentUserEmail() ?? 'User';
 
-    // Safe way to get first character
     final firstChar = userEmail.isNotEmpty ? userEmail[0].toUpperCase() : 'U';
 
     return Scaffold(
@@ -56,6 +81,21 @@ class HomeScreen extends StatelessWidget {
         title: const Text('Home'),
         automaticallyImplyLeading: false,
         actions: [
+          // ✅ Show session status indicator (optional)
+          if (SessionManager().isSessionActive)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Center(
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => _handleLogout(context, auth),
@@ -142,8 +182,17 @@ class HomeScreen extends StatelessWidget {
                       const Divider(),
                       const SizedBox(height: 16),
                       const Text(
-                        'You have successfully logged in!',
-                        style: TextStyle(fontSize: 16),
+                        'Your session is being monitored for security.',
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Auto-logout after 5 min of inactivity',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
