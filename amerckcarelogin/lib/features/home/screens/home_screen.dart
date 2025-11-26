@@ -178,20 +178,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 24),
                       const Divider(),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Your session is being monitored for security.',
-                        style: TextStyle(fontSize: 13, color: Colors.grey),
-                        textAlign: TextAlign.center,
-                      ),
+
                       const SizedBox(height: 4),
-                      Text(
-                        'Auto-logout after 5 min of inactivity',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
                     ],
                   ),
                 ),
