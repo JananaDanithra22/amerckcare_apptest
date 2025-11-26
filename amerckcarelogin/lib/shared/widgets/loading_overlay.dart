@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 /// Global overlay controller - Use this anywhere in your app
 class GlobalOverlayController extends ChangeNotifier {
@@ -115,6 +116,8 @@ class GlobalLoadingOverlay extends StatelessWidget {
   final Color? backgroundColor;
   final Color? progressColor;
   final String? logoAssetPath;
+  final String? lottieAssetPath;
+  final double? lottieSize;
 
   const GlobalLoadingOverlay({
     Key? key,
@@ -122,6 +125,8 @@ class GlobalLoadingOverlay extends StatelessWidget {
     this.backgroundColor,
     this.progressColor,
     this.logoAssetPath = 'assets/images/signlogo.png',
+    this.lottieAssetPath = 'assets/loading.json',
+    this.lottieSize = 150,
   }) : super(key: key);
 
   @override
@@ -194,12 +199,32 @@ class GlobalLoadingOverlay extends StatelessWidget {
               ],
             ),
           ),
-        ] else
-          CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(
-              progressColor ?? const Color(0xFF2196F3),
+        ] else ...[
+          // Lottie Animation instead of CircularProgressIndicator
+          if (lottieAssetPath != null)
+            Lottie.asset(
+              lottieAssetPath!,
+              width: lottieSize,
+              height: lottieSize,
+              fit: BoxFit.contain,
+              repeat: true,
+              animate: true,
+              errorBuilder: (context, error, stackTrace) {
+                // Fallback to CircularProgressIndicator if Lottie fails
+                return CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    progressColor ?? const Color(0xFF2196F3),
+                  ),
+                );
+              },
+            )
+          else
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(
+                progressColor ?? const Color(0xFF2196F3),
+              ),
             ),
-          ),
+        ],
 
         // Message
         if (controller.message != null) ...[

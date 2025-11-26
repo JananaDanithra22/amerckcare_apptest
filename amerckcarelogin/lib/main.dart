@@ -149,6 +149,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           backgroundColor: Colors.white,
           progressColor: const Color(0xFF2196F3),
           logoAssetPath: 'assets/images/signlogo.png',
+          lottieAssetPath: 'assets/loading.json',
+          lottieSize: 80,
           child: ActivityDetector(child: child ?? const SizedBox.shrink()),
         );
       },

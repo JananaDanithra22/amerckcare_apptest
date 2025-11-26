@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:lottie/lottie.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/services/biometric_service.dart';
@@ -199,10 +200,21 @@ class _SplashScreenState extends State<SplashScreen> {
               height: 360,
             ),
 
-            // ✅ Show biometric prompt indicator
+            // ✅ Show biometric prompt indicator with Lottie
             if (_showBiometricPrompt) ...[
               const SizedBox(height: 40),
-              const CircularProgressIndicator(),
+              Lottie.asset(
+                'assets/loading.json',
+                width: 80,
+                height: 80,
+                fit: BoxFit.contain,
+                repeat: true,
+                animate: true,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback to CircularProgressIndicator if Lottie fails
+                  return const CircularProgressIndicator();
+                },
+              ),
               const SizedBox(height: 16),
               const Text(
                 'Authenticating...',
