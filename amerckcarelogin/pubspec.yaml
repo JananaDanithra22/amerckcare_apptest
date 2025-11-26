@@ -35,3 +35,4 @@ flutter:
     - assets/images/signlogo.png
     - assets/Fingerprint Success.json
     - assets/loading.json
+    - assets/waiting.json
