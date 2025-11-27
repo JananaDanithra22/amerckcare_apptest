@@ -1,6 +1,6 @@
 // lib/features/auth/services/biometric_service.dart - FINAL SIMPLIFIED VERSION
 
-import 'package:amerckcarelogin/features/auth/providers/auth_provider.dart';
+import 'package:AmerckCare/features/auth/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
@@ -15,9 +15,12 @@ class BiometricService {
 
   // Storage keys
   static const String _keyBiometricEnabled = 'biometric_enabled';
-  static const String _keyStoredEmail = 'stored_email'; // For email/password only
-  static const String _keyStoredPassword = 'stored_password'; // For email/password only
-  static const String _keyStoredUid = 'stored_uid'; // ALWAYS stored for verification
+  static const String _keyStoredEmail =
+      'stored_email'; // For email/password only
+  static const String _keyStoredPassword =
+      'stored_password'; // For email/password only
+  static const String _keyStoredUid =
+      'stored_uid'; // ALWAYS stored for verification
   static const String _keyLoginType = 'stored_login_type';
   static const String _keyBiometricPromptShown = 'biometric_prompt_shown';
   static const String _keyPersistedLoginType = 'persisted_login_type';
@@ -142,9 +145,9 @@ class BiometricService {
   Future<void> enableBiometric(
     String email, // Can be 'no-email' for SSO users without email
     String? password, // Only for email/password users
-    String uid, // ALWAYS required
-    {required LoginType loginType}
-  ) async {
+    String uid, { // ALWAYS required
+    required LoginType loginType,
+  }) async {
     try {
       await _secureStorage.write(key: _keyBiometricEnabled, value: 'true');
       await _secureStorage.write(key: _keyStoredUid, value: uid);
@@ -167,7 +170,7 @@ class BiometricService {
       }
 
       await markBiometricPromptShown();
-      
+
       debugPrint('✅ Biometric enabled:');
       debugPrint('   Type: $loginType');
       debugPrint('   UID: $uid');
@@ -223,7 +226,8 @@ class BiometricService {
       if (biometrics.contains(BiometricType.fingerprint)) return 'Fingerprint';
       if (biometrics.contains(BiometricType.iris)) return 'Iris';
       if (biometrics.contains(BiometricType.strong) ||
-          biometrics.contains(BiometricType.weak)) return 'Biometric';
+          biometrics.contains(BiometricType.weak))
+        return 'Biometric';
       return 'Biometric';
     } catch (e) {
       return 'Biometric';
