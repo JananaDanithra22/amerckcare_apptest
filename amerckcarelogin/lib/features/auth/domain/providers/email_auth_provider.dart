@@ -1,3 +1,4 @@
+// lib/features/auth/domain/providers/email_auth_provider.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import '../auth_provider_interface.dart';
 

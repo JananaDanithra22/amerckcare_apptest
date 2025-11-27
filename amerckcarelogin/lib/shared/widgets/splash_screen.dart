@@ -1,4 +1,4 @@
-// lib/shared/widgets/splash_screen.dart - FIXED VERSION
+// lib/shared/widgets/splash_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
