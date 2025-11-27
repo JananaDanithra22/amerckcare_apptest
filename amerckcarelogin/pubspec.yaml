@@ -1,4 +1,4 @@
-name: amerckcarelogin
+name: AmerckCare
 description: "A new Flutter project."
 publish_to: 'none'
 
@@ -26,6 +26,13 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.10.0
+
+flutter_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/amerckcarelogo1.1.jpg"
+
 
 flutter:
   uses-material-design: true 
@@ -34,3 +41,5 @@ flutter:
     - assets/images/Glogo.png
     - assets/images/signlogo.png
     - assets/Fingerprint Success.json
+    - assets/loading.json
+    - assets/waiting.json

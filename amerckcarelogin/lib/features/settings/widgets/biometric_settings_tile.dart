@@ -1,8 +1,8 @@
 // lib/features/auth/widgets/biometric_settings_tile.dart - IMPROVED VERSION
 
-import 'package:amerckcarelogin/core/constants/ui_constants.dart';
-import 'package:amerckcarelogin/features/auth/providers/auth_provider.dart';
-import 'package:amerckcarelogin/features/auth/services/biometric_service.dart';
+import 'package:AmerckCare/core/constants/ui_constants.dart';
+import 'package:AmerckCare/features/auth/providers/auth_provider.dart';
+import 'package:AmerckCare/features/auth/services/biometric_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../screens/enable_biometric_screen.dart';

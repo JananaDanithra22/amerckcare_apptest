@@ -5,10 +5,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import '../domain/auth_provider_interface.dart';
-import 'package:amerckcarelogin/features/auth/domain/providers/email_auth_provider.dart';
-import 'package:amerckcarelogin/features/auth/domain/providers/google_auth_provider.dart'
+import 'package:AmerckCare/features/auth/domain/providers/email_auth_provider.dart';
+import 'package:AmerckCare/features/auth/domain/providers/google_auth_provider.dart'
     as google;
-import 'package:amerckcarelogin/features/auth/domain/providers/facebook_auth_provider.dart'
+import 'package:AmerckCare/features/auth/domain/providers/facebook_auth_provider.dart'
     as facebook;
 import '../services/biometric_service.dart';
 

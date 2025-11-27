@@ -1,10 +1,10 @@
 // lib/features/settings/screens/enable_biometric_screen.dart - FIXED
 
-import 'package:amerckcarelogin/features/auth/providers/auth_provider.dart';
-import 'package:amerckcarelogin/features/auth/services/auth_service.dart';
-import 'package:amerckcarelogin/features/auth/services/biometric_service.dart';
-import 'package:amerckcarelogin/features/auth/widgets/custom_button.dart';
-import 'package:amerckcarelogin/features/auth/widgets/custom_text_field.dart';
+import 'package:AmerckCare/features/auth/providers/auth_provider.dart';
+import 'package:AmerckCare/features/auth/services/auth_service.dart';
+import 'package:AmerckCare/features/auth/services/biometric_service.dart';
+import 'package:AmerckCare/features/auth/widgets/custom_button.dart';
+import 'package:AmerckCare/features/auth/widgets/custom_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lottie/lottie.dart';
