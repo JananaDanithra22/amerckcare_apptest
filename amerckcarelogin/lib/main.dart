@@ -1,4 +1,4 @@
-// lib/main.dart - WITH SESSION TIMEOUT
+// lib/main.dart 
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

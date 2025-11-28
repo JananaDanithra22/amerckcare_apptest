@@ -1,4 +1,4 @@
-// lib/features/auth/services/biometric_service.dart - FINAL SIMPLIFIED VERSION
+// lib/features/auth/services/biometric_service.dart
 
 import 'package:AmerckCare/features/auth/providers/auth_provider.dart';
 import 'package:flutter/material.dart';

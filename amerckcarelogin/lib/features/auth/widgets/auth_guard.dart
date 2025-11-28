@@ -1,3 +1,4 @@
+// lib/features/auth/widgets/auth_guard.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';

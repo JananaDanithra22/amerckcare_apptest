@@ -1,3 +1,4 @@
+// lib/core/constants/ui_constants.dart
 import 'package:flutter/material.dart';
 
 class UIConstants {
