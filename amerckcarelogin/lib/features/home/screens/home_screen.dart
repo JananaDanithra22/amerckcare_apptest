@@ -15,6 +15,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   void initState() {
     super.initState();
@@ -39,81 +41,145 @@ class _HomeScreenState extends State<HomeScreen> {
     final userName = userEmail.split('@')[0]; // Get name from email
 
     return Scaffold(
-      // ✅ Add the drawer
+      key: _scaffoldKey,
       drawer: const AppDrawer(),
+      // ✅ NO APP BAR - works better with camera notches
+      body: SafeArea(
+        // ✅ SafeArea handles all notches, cutouts, and system UI
+        child: Column(
+          children: [
+            // ✅ Custom Header Bar (replaces AppBar)
+            _buildCustomHeader(context, userName, auth),
 
-      appBar: AppBar(
-        title: const Text('AmerckCare'),
-        elevation: 0,
-        actions: [
-          // Session status indicator
-          if (SessionManager().isSessionActive)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'Active',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.green,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+            // ✅ Scrollable Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Welcome Section
+                    _buildWelcomeSection(userName, auth),
+
+                    const SizedBox(height: 24),
+
+                    // Quick Actions Grid
+                    _buildQuickActionsSection(context),
+
+                    const SizedBox(height: 24),
+
+                    // Recent Activity Section
+                    _buildRecentActivitySection(),
+
+                    const SizedBox(height: 24),
+
+                    // Health Tips Section
+                    _buildHealthTipsSection(),
+
+                    const SizedBox(height: 24),
+                  ],
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ✅ Custom Header Bar (replaces AppBar)
+  Widget _buildCustomHeader(
+    BuildContext context,
+    String userName,
+    AuthProvider auth,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
-
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ✅ Welcome Section
-              _buildWelcomeSection(userName, auth),
-
-              const SizedBox(height: 24),
-
-              // ✅ Quick Actions Grid
-              _buildQuickActionsSection(context),
-
-              const SizedBox(height: 24),
-
-              // ✅ Recent Activity Section (Placeholder)
-              _buildRecentActivitySection(),
-
-              const SizedBox(height: 24),
-
-              // ✅ Health Tips Section (Placeholder)
-              _buildHealthTipsSection(),
-            ],
+      child: Row(
+        children: [
+          // ✅ Menu Button (opens drawer)
+          IconButton(
+            icon: const Icon(Icons.menu, color: Color(0xFF1C8AE5)),
+            onPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+            tooltip: 'Menu',
           ),
-        ),
+
+          const SizedBox(width: 8),
+
+          // ✅ App Logo/Title
+          Image.asset(
+            'assets/images/signlogo.png',
+            height: 32,
+            width: 32,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(
+                Icons.local_hospital,
+                size: 32,
+                color: Color(0xFF1C8AE5),
+              );
+            },
+          ),
+
+          const SizedBox(width: 8),
+
+          const Text(
+            'AmerckCare',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1C8AE5),
+            ),
+          ),
+
+          const Spacer(),
+
+          // ✅ Session Status Indicator
+          if (SessionManager().isSessionActive)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Active',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.green,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
