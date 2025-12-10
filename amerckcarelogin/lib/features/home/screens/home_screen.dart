@@ -1,11 +1,11 @@
-// lib/features/home/screens/home_screen.dart - WITH SESSION MONITORING & STYLED LOGOUT DIALOG
+// lib/features/home/screens/home_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lottie/lottie.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../config/routes.dart';
 import '../../../core/utils/session_manager.dart';
+import '../../../shared/widgets/app_drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -32,224 +32,85 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Future<void> _handleLogout(BuildContext context, AuthProvider auth) async {
-    final shouldLogout = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return WillPopScope(
-          onWillPop: () async => false,
-          child: Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Log out of the app?',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'You will be signed out and will need to log in again.',
-                    style: TextStyle(fontSize: 14, color: Colors.black54),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: HoverButton(
-                          label: 'Cancel',
-                          onPressed: () {
-                            Navigator.of(context).pop(false);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: HoverButton(
-                          label: 'Log Out',
-                          onPressed: () {
-                            Navigator.of(context).pop(true);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
-    // If user confirmed logout
-    if (shouldLogout == true) {
-      // ✅ Stop session monitoring on manual logout
-      SessionManager().stopSession();
-
-      await auth.logout();
-
-      if (context.mounted) {
-        Navigator.pushReplacementNamed(context, AppRoutes.login);
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
     final userEmail = auth.getCurrentUserEmail() ?? 'User';
-
-    final firstChar = userEmail.isNotEmpty ? userEmail[0].toUpperCase() : 'U';
+    final userName = userEmail.split('@')[0]; // Get name from email
 
     return Scaffold(
+      // ✅ Add the drawer
+      drawer: const AppDrawer(),
+
       appBar: AppBar(
-        title: const Text('Home'),
-        automaticallyImplyLeading: false,
+        title: const Text('AmerckCare'),
+        elevation: 0,
         actions: [
-          // ✅ Show session status indicator (optional)
+          // Session status indicator
           if (SessionManager().isSessionActive)
             Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.only(right: 16),
               child: Center(
                 child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Colors.green,
-                    shape: BoxShape.circle,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
                   ),
-                ),
-              ),
-            ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => _handleLogout(context, auth),
-            tooltip: 'Logout',
-          ),
-        ],
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Colors.blue,
-                        child: Text(
-                          firstChar,
-                          style: const TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(width: 6),
                       const Text(
-                        'Welcome!',
+                        'Active',
                         style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                          color: Colors.green,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        userEmail,
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-
-                      if (auth.loginType != null) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getLoginTypeColor(auth.loginType!),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _getLoginTypeIcon(auth.loginType!),
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _getLoginTypeText(auth.loginType!),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 24),
-                      const Divider(),
-                      const SizedBox(height: 16),
-
-                      const SizedBox(height: 4),
                     ],
                   ),
                 ),
               ),
+            ),
+        ],
+      ),
 
-              const SizedBox(height: 32),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ✅ Welcome Section
+              _buildWelcomeSection(userName, auth),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _QuickActionCard(
-                    icon: Icons.settings,
-                    label: 'Settings',
-                    onTap: () {
-                      Navigator.pushNamed(context, AppRoutes.settings);
-                    },
-                  ),
-                  const SizedBox(width: 16),
-                  _QuickActionCard(
-                    icon: Icons.person,
-                    label: 'Profile',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Profile coming soon')),
-                      );
-                    },
-                  ),
-                ],
-              ),
+              const SizedBox(height: 24),
+
+              // ✅ Quick Actions Grid
+              _buildQuickActionsSection(context),
+
+              const SizedBox(height: 24),
+
+              // ✅ Recent Activity Section (Placeholder)
+              _buildRecentActivitySection(),
+
+              const SizedBox(height: 24),
+
+              // ✅ Health Tips Section (Placeholder)
+              _buildHealthTipsSection(),
             ],
           ),
         ),
@@ -257,15 +118,235 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Color _getLoginTypeColor(LoginType type) {
-    switch (type) {
-      case LoginType.google:
-        return const Color(0xFF4285F4);
-      case LoginType.facebook:
-        return const Color(0xFF1877F2);
-      case LoginType.emailPassword:
-        return const Color(0xFF2196F3);
-    }
+  /// Welcome section with user greeting
+  Widget _buildWelcomeSection(String userName, AuthProvider auth) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1C8AE5), Color(0xFF0650A2)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withOpacity(0.3),
+            spreadRadius: 2,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Welcome back,',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      userName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              // Login type badge
+              if (auth.loginType != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _getLoginTypeIcon(auth.loginType!),
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _getLoginTypeText(auth.loginType!),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'How can we help you today?',
+            style: TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Quick actions grid
+  Widget _buildQuickActionsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Quick Actions',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 12),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.3,
+          children: [
+            _QuickActionCard(
+              icon: Icons.calendar_today,
+              title: 'Appointments',
+              subtitle: 'Book & Manage',
+              color: Colors.blue,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Appointments coming soon')),
+                );
+              },
+            ),
+            _QuickActionCard(
+              icon: Icons.medical_services,
+              title: 'Records',
+              subtitle: 'View Health Data',
+              color: Colors.green,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Records coming soon')),
+                );
+              },
+            ),
+            _QuickActionCard(
+              icon: Icons.medication,
+              title: 'Medications',
+              subtitle: 'Track & Refill',
+              color: Colors.orange,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Medications coming soon')),
+                );
+              },
+            ),
+            _QuickActionCard(
+              icon: Icons.chat,
+              title: 'Messages',
+              subtitle: 'Contact Provider',
+              color: Colors.purple,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Messages coming soon')),
+                );
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Recent activity section
+  Widget _buildRecentActivitySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Recent Activity',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Center(
+            child: Column(
+              children: [
+                Icon(Icons.inbox_outlined, size: 48, color: Colors.grey),
+                SizedBox(height: 8),
+                Text(
+                  'No recent activity',
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Health tips section
+  Widget _buildHealthTipsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Health Tips',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _HealthTipCard(
+          icon: Icons.water_drop,
+          title: 'Stay Hydrated',
+          description: 'Drink at least 8 glasses of water daily',
+          color: Colors.blue.shade400,
+        ),
+        const SizedBox(height: 8),
+        _HealthTipCard(
+          icon: Icons.bedtime,
+          title: 'Get Enough Sleep',
+          description: 'Aim for 7-9 hours of quality sleep',
+          color: Colors.indigo.shade400,
+        ),
+      ],
+    );
   }
 
   IconData _getLoginTypeIcon(LoginType type) {
@@ -282,23 +363,28 @@ class _HomeScreenState extends State<HomeScreen> {
   String _getLoginTypeText(LoginType type) {
     switch (type) {
       case LoginType.google:
-        return 'Signed in with Google';
+        return 'Google';
       case LoginType.facebook:
-        return 'Signed in with Facebook';
+        return 'Facebook';
       case LoginType.emailPassword:
-        return 'Email Login';
+        return 'Email';
     }
   }
 }
 
+/// Quick action card widget
 class _QuickActionCard extends StatelessWidget {
   final IconData icon;
-  final String label;
+  final String title;
+  final String subtitle;
+  final Color color;
   final VoidCallback onTap;
 
   const _QuickActionCard({
     required this.icon,
-    required this.label,
+    required this.title,
+    required this.subtitle,
+    required this.color,
     required this.onTap,
   });
 
@@ -308,28 +394,45 @@ class _QuickActionCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 120,
-        height: 120,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.2),
-              spreadRadius: 2,
-              blurRadius: 5,
-              offset: const Offset(0, 3),
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: Colors.blue),
-            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 12),
             Text(
-              label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -338,50 +441,61 @@ class _QuickActionCard extends StatelessWidget {
   }
 }
 
-/// Reusable hover button — same behaviour/visuals as your session warning dialog buttons
-class HoverButton extends StatefulWidget {
-  final String label;
-  final VoidCallback onPressed;
+/// Health tip card widget
+class _HealthTipCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+  final Color color;
 
-  const HoverButton({Key? key, required this.label, required this.onPressed})
-    : super(key: key);
-
-  @override
-  State<HoverButton> createState() => _HoverButtonState();
-}
-
-class _HoverButtonState extends State<HoverButton> {
-  bool _isHovered = false;
+  const _HealthTipCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // MouseRegion only affects desktop/web; mobile will ignore hover but still be tappable
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          decoration: BoxDecoration(
-            color: _isHovered ? Colors.blue : Colors.transparent,
-            border: Border.all(color: Colors.blue, width: 2),
-            borderRadius: BorderRadius.circular(8),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.white, size: 24),
           ),
-          child: Center(
-            child: Text(
-              widget.label,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: _isHovered ? Colors.white : Colors.blue,
-              ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+              ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
