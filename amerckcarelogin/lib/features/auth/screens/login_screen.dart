@@ -637,7 +637,10 @@ class _LoginScreenState extends State<LoginScreen> with RouteAware {
                     ),
                     const SizedBox(height: 16),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        // Navigate to forgot password screen
+                        Navigator.pushNamed(context, '/forgot-password');
+                      },
                       child: const Text(
                         'Forgot Password?',
                         style: TextStyle(
