@@ -1,4 +1,4 @@
-// lib/features/auth/screens/login_screen.dart - PRODUCTION-READY VERSION
+// lib/features/auth/screens/login_screen.dart - FIXED VERSION
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,7 +20,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with RouteAware {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -36,9 +36,14 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkBiometricAvailability();
-    });
+    _checkBiometricAvailability();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ✅ FIX: Refresh biometric state when screen becomes visible again
+    _checkBiometricAvailability();
   }
 
   @override
@@ -49,14 +54,38 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _checkBiometricAvailability() async {
+    // ✅ FIX: Always check fresh state
     final isBiometricEnabled = await _biometricService.isBiometricEnabled();
-    if (!isBiometricEnabled) return;
+
+    if (!isBiometricEnabled) {
+      // ✅ Hide button if biometric is disabled
+      if (mounted && _showBiometricButton) {
+        setState(() {
+          _showBiometricButton = false;
+        });
+      }
+      return;
+    }
 
     final isBiometricAvailable = await _biometricService.isBiometricAvailable();
-    if (!isBiometricAvailable) return;
+    if (!isBiometricAvailable) {
+      if (mounted && _showBiometricButton) {
+        setState(() {
+          _showBiometricButton = false;
+        });
+      }
+      return;
+    }
 
     final credentials = await _biometricService.getStoredCredentials();
-    if (credentials == null) return;
+    if (credentials == null) {
+      if (mounted && _showBiometricButton) {
+        setState(() {
+          _showBiometricButton = false;
+        });
+      }
+      return;
+    }
 
     final biometricName = await _biometricService.getBiometricTypeName();
 
@@ -68,10 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// ✅ PRODUCTION VERSION: Always re-authenticate SSO users
-  /// This ensures biometric works even after logout
   Future<void> _handleBiometricLogin() async {
-    // ✅ Use global overlay instead of local loading state
     GlobalOverlayController().show('Authenticating with biometrics...');
 
     try {
@@ -79,12 +105,13 @@ class _LoginScreenState extends State<LoginScreen> {
       if (credentials == null) {
         GlobalOverlayController().hide();
         _showError('No stored credentials found');
+        // ✅ FIX: Hide button and refresh state
+        await _checkBiometricAvailability();
         return;
       }
 
       final biometricName = await _biometricService.getBiometricTypeName();
 
-      // Hide overlay temporarily for biometric scan
       GlobalOverlayController().hide();
 
       final authenticated = await _biometricService.authenticate(
@@ -95,7 +122,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // Show overlay again after biometric success
       GlobalOverlayController().show('Signing in...');
 
       final loginTypeStr = credentials['loginType'] ?? 'emailPassword';
@@ -111,35 +137,32 @@ class _LoginScreenState extends State<LoginScreen> {
 
       switch (loginTypeStr) {
         case 'emailPassword':
-          // ✅ Email/Password: Use stored credentials to login
           if (storedEmail == null || storedPassword == null) {
+            GlobalOverlayController().hide();
             _showError('Stored credentials incomplete');
+            await _biometricService.disableBiometric();
+            await _checkBiometricAvailability();
             return;
           }
 
           debugPrint('🔐 Logging in with email/password...');
           await auth.login(storedEmail, storedPassword);
 
-          // Verify login succeeded
           if (!auth.isAuthenticated) {
             GlobalOverlayController().hide();
             _showError('Login failed. Please try again manually.');
             await _biometricService.disableBiometric();
-            setState(() => _showBiometricButton = false);
+            await _checkBiometricAvailability();
             return;
           }
           break;
 
         case 'google':
-          // ✅ KEY CHANGE: Always trigger fresh Google Sign-In
           debugPrint('🔐 Triggering Google Sign-In...');
 
           await auth.signInWithGoogle();
-
-          // Wait for auth to complete
           await Future.delayed(const Duration(milliseconds: 500));
 
-          // Verify the sign-in succeeded and UID matches
           if (!auth.isAuthenticated) {
             GlobalOverlayController().hide();
             _showError(
@@ -159,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
               'You signed in with a different Google account. Biometric disabled.',
             );
             await _biometricService.disableBiometric();
-            setState(() => _showBiometricButton = false);
+            await _checkBiometricAvailability();
             return;
           }
 
@@ -167,15 +190,11 @@ class _LoginScreenState extends State<LoginScreen> {
           break;
 
         case 'facebook':
-          // ✅ KEY CHANGE: Always trigger fresh Facebook Sign-In
           debugPrint('🔐 Triggering Facebook Sign-In...');
 
           await auth.signInWithFacebook();
-
-          // Wait for auth to complete
           await Future.delayed(const Duration(milliseconds: 500));
 
-          // Verify the sign-in succeeded and UID matches
           if (!auth.isAuthenticated) {
             GlobalOverlayController().hide();
             _showError(
@@ -195,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
               'You signed in with a different Facebook account. Biometric disabled.',
             );
             await _biometricService.disableBiometric();
-            setState(() => _showBiometricButton = false);
+            await _checkBiometricAvailability();
             return;
           }
 
@@ -210,21 +229,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // Final check before navigation
       if (auth.isAuthenticated) {
         GlobalOverlayController().hide();
         debugPrint('✅ Biometric login successful');
-        Navigator.pushReplacementNamed(context, '/home');
+        // ✅ FIX: Use pushNamedAndRemoveUntil
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       } else {
         GlobalOverlayController().hide();
         _showError('Authentication failed. Please try again.');
         await _biometricService.disableBiometric();
-        setState(() => _showBiometricButton = false);
+        await _checkBiometricAvailability();
       }
     } catch (e) {
       GlobalOverlayController().hide();
       debugPrint('🔴 Error in biometric login: $e');
       _showError('Biometric authentication error. Please login manually.');
+      await _checkBiometricAvailability();
     }
   }
 
@@ -265,7 +285,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (result.success) {
       await _promptBiometricEnrollment();
-      Navigator.pushReplacementNamed(context, '/home');
+      // ✅ FIX: Use pushNamedAndRemoveUntil
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } else {
       final errors = AuthErrorParser.parse(result.error);
       setState(() {
@@ -346,7 +367,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (result.success) {
       await _promptBiometricEnrollmentForSSO(LoginType.google);
-      Navigator.pushReplacementNamed(context, '/home');
+      // ✅ FIX: Use pushNamedAndRemoveUntil
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -364,7 +386,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (result.success) {
       await _promptBiometricEnrollmentForSSO(LoginType.facebook);
-      Navigator.pushReplacementNamed(context, '/home');
+      // ✅ FIX: Use pushNamedAndRemoveUntil
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
