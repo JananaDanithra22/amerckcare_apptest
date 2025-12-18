@@ -265,36 +265,59 @@ class _LogoutButton extends StatelessWidget {
   }
 
   Future<void> _handleLogout(BuildContext context) async {
-    // Close drawer first
-    Navigator.pop(context);
+    debugPrint('🔵 Logout button tapped');
 
+    // ✅ FIX: Get the navigator BEFORE showing dialog
+    final navigator = Navigator.of(context);
+
+    // Show dialog BEFORE closing drawer
     final shouldLogout = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => _LogoutConfirmDialog(),
+      builder: (dialogContext) => const _LogoutConfirmDialog(),
     );
 
-    if (shouldLogout == true && context.mounted) {
-      // Stop session monitoring
-      SessionManager().stopSession();
+    debugPrint('🔍 Dialog result: $shouldLogout');
+    debugPrint('🔍 Context mounted: ${context.mounted}');
 
-      // Perform logout
-      await auth.logout();
+    if (shouldLogout == true) {
+      debugPrint('🔴 User confirmed logout');
 
-      // ✅ FIX: Use pushNamedAndRemoveUntil to completely clear navigation stack
-      if (context.mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
+      try {
+        // Close drawer first
+        navigator.pop();
+        debugPrint('✅ Drawer closed');
+
+        // Stop session monitoring
+        SessionManager().stopSession();
+        debugPrint('🛑 Session monitoring stopped');
+
+        // Perform logout (clears auth state)
+        await auth.logout();
+        debugPrint('✅ Auth logout completed');
+
+        // ✅ Navigate to login screen and clear all navigation history
+        // Use the navigator we captured earlier
+        navigator.pushNamedAndRemoveUntil(
           AppRoutes.login,
           (route) => false, // Remove all previous routes
         );
+        debugPrint('✅ Navigated to login screen');
+      } catch (e) {
+        debugPrint('🔴 Error during logout: $e');
+        // Even if there's an error, try to navigate to login
+        navigator.pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
       }
+    } else {
+      debugPrint('❌ Logout cancelled by user');
     }
   }
 }
 
 /// Styled logout confirmation dialog
 class _LogoutConfirmDialog extends StatelessWidget {
+  const _LogoutConfirmDialog();
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -325,75 +348,55 @@ class _LogoutConfirmDialog extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _DialogButton(
-                    label: 'Cancel',
-                    onPressed: () => Navigator.of(context).pop(false),
-                    isPrimary: false,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      debugPrint('🔵 Cancel button pressed');
+                      Navigator.of(context).pop(false);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: Colors.grey, width: 2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _DialogButton(
-                    label: 'Log Out',
-                    onPressed: () => Navigator.of(context).pop(true),
-                    isPrimary: true,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      debugPrint('🔴 Log Out button pressed');
+                      Navigator.of(context).pop(true);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Log Out',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Styled dialog button with hover effect
-class _DialogButton extends StatefulWidget {
-  final String label;
-  final VoidCallback onPressed;
-  final bool isPrimary;
-
-  const _DialogButton({
-    required this.label,
-    required this.onPressed,
-    this.isPrimary = false,
-  });
-
-  @override
-  State<_DialogButton> createState() => _DialogButtonState();
-}
-
-class _DialogButtonState extends State<_DialogButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          decoration: BoxDecoration(
-            color: _isHovered ? Colors.blue : Colors.transparent,
-            border: Border.all(color: Colors.blue, width: 2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Center(
-            child: Text(
-              widget.label,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: _isHovered ? Colors.white : Colors.blue,
-              ),
-            ),
-          ),
         ),
       ),
     );
