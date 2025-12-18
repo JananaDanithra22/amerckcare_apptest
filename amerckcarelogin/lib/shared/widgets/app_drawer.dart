@@ -1,4 +1,4 @@
-// lib/shared/widgets/app_drawer.dart - FIXED LOGOUT
+// lib/shared/widgets/app_drawer.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -19,7 +19,7 @@ class AppDrawer extends StatelessWidget {
     return Drawer(
       child: Column(
         children: [
-          // ✅ User Profile Header
+          // ✅ User Profile Header with clickable avatar
           _buildUserHeader(context, userEmail, firstChar, auth),
 
           // ✅ Navigation Menu Items
@@ -33,6 +33,7 @@ class AppDrawer extends StatelessWidget {
                   title: 'Home',
                   onTap: () {
                     Navigator.pop(context); // Close drawer
+                    // Already on home, no navigation needed
                   },
                 ),
                 _buildMenuItem(
@@ -41,9 +42,7 @@ class AppDrawer extends StatelessWidget {
                   title: 'Profile',
                   onTap: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Profile coming soon')),
-                    );
+                    Navigator.pushNamed(context, AppRoutes.profile);
                   },
                 ),
                 _buildMenuItem(
@@ -124,6 +123,7 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
+  /// Build user profile header with clickable avatar
   Widget _buildUserHeader(
     BuildContext context,
     String userEmail,
@@ -135,17 +135,27 @@ class AppDrawer extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1C8AE5), Color(0xFF0650A2)],
+          colors: [
+            Color(0xFF1C8AE5), // Primary blue
+            Color(0xFF0650A2), // Dark blue
+          ],
         ),
       ),
-      currentAccountPicture: CircleAvatar(
-        backgroundColor: Colors.white,
-        child: Text(
-          firstChar,
-          style: const TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1C8AE5),
+      currentAccountPicture: GestureDetector(
+        onTap: () {
+          // Navigate to profile when avatar is tapped
+          Navigator.pop(context); // Close drawer first
+          Navigator.pushNamed(context, AppRoutes.profile);
+        },
+        child: CircleAvatar(
+          backgroundColor: Colors.white,
+          child: Text(
+            firstChar,
+            style: const TextStyle(
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1C8AE5),
+            ),
           ),
         ),
       ),
@@ -172,6 +182,7 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
+  /// Build menu item
   Widget _buildMenuItem(
     BuildContext context, {
     required IconData icon,
@@ -189,6 +200,7 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
+  /// Show about dialog
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -253,60 +265,30 @@ class _LogoutButton extends StatelessWidget {
   }
 
   Future<void> _handleLogout(BuildContext context) async {
-    // ✅ FIX 1: Get root navigator and context before any async operations
-    final navigator = Navigator.of(context, rootNavigator: true);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
     // Close drawer first
     Navigator.pop(context);
 
-    // ✅ FIX 2: Show confirmation dialog with proper context handling
     final shouldLogout = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => _LogoutConfirmDialog(),
     );
 
-    if (shouldLogout != true) {
-      debugPrint('❌ User cancelled logout');
-      return;
-    }
-
-    debugPrint('🔄 Starting logout process...');
-
-    try {
-      // ✅ FIX 3: Stop session monitoring FIRST
+    if (shouldLogout == true && context.mounted) {
+      // Stop session monitoring
       SessionManager().stopSession();
-      debugPrint('✅ Session monitoring stopped');
 
-      // ✅ FIX 4: Perform logout
+      // Perform logout
       await auth.logout();
-      debugPrint('✅ Auth logout completed');
 
-      // ✅ FIX 5: Force navigation using the captured navigator
-      // Use a post-frame callback to ensure widget tree is stable
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        navigator.pushNamedAndRemoveUntil(
+      // ✅ FIX: Use pushNamedAndRemoveUntil to completely clear navigation stack
+      if (context.mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
           AppRoutes.login,
-          (route) => false, // Remove ALL previous routes
+          (route) => false, // Remove all previous routes
         );
-        debugPrint('✅ Navigation to login screen initiated');
-      });
-    } catch (e) {
-      debugPrint('🔴 Error during logout: $e');
-
-      // ✅ FIX 6: Show error and force navigation
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Logout error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-
-      // Force navigation anyway
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        navigator.pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
-      });
+      }
     }
   }
 }
@@ -343,49 +325,75 @@ class _LogoutConfirmDialog extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: _DialogButton(
+                    label: 'Cancel',
                     onPressed: () => Navigator.of(context).pop(false),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: const BorderSide(color: Colors.blue, width: 2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue,
-                      ),
-                    ),
+                    isPrimary: false,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: _DialogButton(
+                    label: 'Log Out',
                     onPressed: () => Navigator.of(context).pop(true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Log Out',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
+                    isPrimary: true,
                   ),
                 ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Styled dialog button with hover effect
+class _DialogButton extends StatefulWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final bool isPrimary;
+
+  const _DialogButton({
+    required this.label,
+    required this.onPressed,
+    this.isPrimary = false,
+  });
+
+  @override
+  State<_DialogButton> createState() => _DialogButtonState();
+}
+
+class _DialogButtonState extends State<_DialogButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+          decoration: BoxDecoration(
+            color: _isHovered ? Colors.blue : Colors.transparent,
+            border: Border.all(color: Colors.blue, width: 2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
+            child: Text(
+              widget.label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: _isHovered ? Colors.white : Colors.blue,
+              ),
+            ),
+          ),
         ),
       ),
     );
