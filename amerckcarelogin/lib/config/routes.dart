@@ -5,6 +5,7 @@ import '../features/auth/screens/signup_screen.dart';
 import '../features/home/screens/home_screen.dart';
 import '../shared/widgets/splash_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 
 class AppRoutes {
   // Route names
@@ -13,6 +14,7 @@ class AppRoutes {
   static const String signup = '/signup';
   static const String home = '/home';
   static const String settings = '/settings';
+  static const String profile = '/profile';
 
   /// Returns a map of all app routes
   static Map<String, WidgetBuilder> getRoutes() {
@@ -22,6 +24,7 @@ class AppRoutes {
       signup: (context) => const SignUpScreen(),
       home: (context) => const HomeScreen(),
       settings: (context) => const SettingsScreen(),
+      profile: (context) => const ProfileScreen(),
     };
   }
 
