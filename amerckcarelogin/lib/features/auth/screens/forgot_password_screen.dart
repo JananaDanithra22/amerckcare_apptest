@@ -53,11 +53,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
       // ✅ Configure action code settings for better control
       final actionCodeSettings = ActionCodeSettings(
-        url: 'https://amerckcare.page.link/reset', // Your app's deep link
-        handleCodeInApp: false,
+        url: 'https://amerckcare-9d72a.firebaseapp.com', // Firebase hosted page
+        handleCodeInApp: false, // ✅ Let Firebase show the web page
         androidPackageName: 'com.amerckcare.app', // Your Android package name
-        androidInstallApp: true,
-        androidMinimumVersion: '1',
+        androidInstallApp: true, // If the app isn’t installed, prompt install
+        androidMinimumVersion: '1', // Minimum version required
       );
 
       // Send password reset email
@@ -240,42 +240,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Debug info (remove in production)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange.shade200),
-                        ),
-                        child: Column(
-                          children: [
-                            const Icon(
-                              Icons.info_outline,
-                              color: Colors.orange,
-                              size: 20,
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Troubleshooting Tips:',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              '• Check Firebase Console for email settings\n'
-                              '• Verify email template is enabled\n'
-                              '• Check spam/junk folder\n'
-                              '• Ensure user exists in Firebase Auth',
-                              style: TextStyle(fontSize: 11, height: 1.4),
-                            ),
-                          ],
-                        ),
-                      ),
-
                       // Back to login
                       TextButton(
                         onPressed: () => Navigator.pop(context),
@@ -305,7 +269,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                       const SizedBox(height: 12),
                       const Text(
-                        'We\'ve sent password reset instructions to:',
+                        'We’ve sent password reset instructions to:',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 14, color: Colors.black54),
                       ),
@@ -320,6 +284,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
+
+                      // User-friendly tips
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -336,7 +302,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ),
                             SizedBox(height: 8),
                             Text(
-                              'Didn\'t receive the email?',
+                              'Next Steps:',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
@@ -344,10 +310,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ),
                             SizedBox(height: 8),
                             Text(
-                              '• Check your spam/junk folder\n'
-                              '• Make sure the email address is correct\n'
-                              '• Wait a few minutes for delivery\n'
-                              '• Check Firebase Console logs',
+                              '• Check your spam/junk folder if you don’t see the email\n'
+                              '• After resetting your password, open the AmerckCare app and sign in with your new password',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.black87,
@@ -359,7 +323,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Resend button
+                      // Resend email button
                       OutlinedButton(
                         onPressed: () {
                           setState(() {
