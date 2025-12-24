@@ -7,6 +7,7 @@ import '../features/home/screens/home_screen.dart';
 import '../shared/widgets/splash_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
+import '../features/profile/screens/change_password_screen.dart'; // Add this import
 
 class AppRoutes {
   // Route names
@@ -17,6 +18,7 @@ class AppRoutes {
   static const String home = '/home';
   static const String settings = '/settings';
   static const String profile = '/profile';
+  static const String changePassword = '/change-password'; // Add this constant
 
   /// Returns a map of all app routes
   static Map<String, WidgetBuilder> getRoutes() {
@@ -28,6 +30,7 @@ class AppRoutes {
       home: (context) => const HomeScreen(),
       settings: (context) => const SettingsScreen(),
       profile: (context) => const ProfileScreen(),
+      changePassword: (context) => const ChangePasswordScreen(), // Add this route
     };
   }
 
@@ -50,5 +53,9 @@ class AppRoutes {
 
   static Future<void> goToSplash(BuildContext context) {
     return Navigator.pushReplacementNamed(context, splash);
+  }
+
+  static Future<void> goToChangePassword(BuildContext context) { // Add helper method
+    return Navigator.pushNamed(context, changePassword);
   }
 }

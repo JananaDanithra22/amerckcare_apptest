@@ -28,6 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'email': userEmail,
       'phone': '+1 (555) 123-4567',
       'experience': '8 years',
+      'patientsToday': '12',
       'totalPatients': '450+',
       'rating': '4.8',
       'consultations': '1,234',
@@ -49,7 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 16),
 
-            // Quick Stats (removed 'Today' stat)
+            // Quick Stats
             _buildQuickStats(doctorData),
 
             const SizedBox(height: 16),
@@ -67,6 +68,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Account Settings
             _buildAccountSettings(context),
 
+            const SizedBox(height: 16),
+
+            // App Settings
+            _buildAppSettings(context),
+
             const SizedBox(height: 24),
           ],
         ),
@@ -83,8 +89,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   ) {
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF1C8AE5), Color(0xFF0650A2)],
@@ -220,12 +226,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// Quick Stats Cards (removed Today stat)
+  /// Quick Stats Cards
   Widget _buildQuickStats(Map<String, String> data) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
+          Expanded(
+            child: _StatCard(
+              icon: Icons.people,
+              value: data['patientsToday']!,
+              label: 'Today',
+              color: Colors.blue,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: _StatCard(
               icon: Icons.star,
@@ -239,17 +254,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: _StatCard(
               icon: Icons.medical_services,
               value: data['consultations']!,
-              label: 'Consultations',
+              label: 'Total',
               color: Colors.green,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _StatCard(
-              icon: Icons.people,
-              value: data['totalPatients']!,
-              label: 'Total Patients',
-              color: Colors.blue,
             ),
           ),
         ],
@@ -330,9 +336,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           title: 'Change Password',
           subtitle: 'Update your account password',
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Change Password coming soon')),
-            );
+            Navigator.pushNamed(
+              context,
+              AppRoutes.changePassword,
+            ); // Use constant instead
           },
         ),
         _SettingsTile(
@@ -343,6 +350,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Navigator.pushNamed(context, AppRoutes.settings);
           },
         ),
+      ],
+    );
+  }
+
+  /// App Settings Section
+  Widget _buildAppSettings(BuildContext context) {
+    return _SectionCard(
+      title: 'App Preferences',
+      icon: Icons.settings,
+      children: [
+        _SettingsTile(
+          icon: Icons.notifications,
+          title: 'Notifications',
+          subtitle: 'Manage notification preferences',
+          trailing: Switch(
+            value: true,
+            onChanged: (value) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    value ? 'Notifications enabled' : 'Notifications disabled',
+                  ),
+                ),
+              );
+            },
+            activeColor: const Color(0xFF1C8AE5),
+          ),
+        ),
+        _SettingsTile(
+          icon: Icons.language,
+          title: 'Language',
+          subtitle: 'English (US)',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Language settings coming soon')),
+            );
+          },
+        ),
         _SettingsTile(
           icon: Icons.help_outline,
           title: 'Help & Support',
@@ -350,6 +395,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Help & Support coming soon')),
+            );
+          },
+        ),
+        _SettingsTile(
+          icon: Icons.privacy_tip,
+          title: 'Privacy Policy',
+          subtitle: 'View our privacy policy',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Privacy Policy coming soon')),
             );
           },
         ),
@@ -486,7 +541,6 @@ class _StatCard extends StatelessWidget {
           Text(
             label,
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
