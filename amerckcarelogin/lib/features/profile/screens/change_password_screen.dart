@@ -1,15 +1,14 @@
 // lib/features/profile/screens/change_password_screen.dart
-// DAY 1: UI Layout + Client-Side Validation (No Firebase yet)
+// Complete Firebase Authentication Integration
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/constants/ui_constants.dart';
 import '../../auth/widgets/custom_text_field.dart';
 import '../../auth/widgets/custom_button.dart';
 
-/// Change Password Screen - Day 1: UI + Validation Only
-/// TODO Day 2: Add Firebase authentication
-/// TODO Day 3: Add re-authentication for security
+/// Change Password Screen with Firebase Integration
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({Key? key}) : super(key: key);
 
@@ -94,7 +93,100 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return isValid;
   }
 
-  /// Handle password change (Day 1: Just validation)
+  /// ✅ Re-authenticate user with current password (REQUIRED by Firebase)
+  Future<bool> _reauthenticateUser(String currentPassword) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || user.email == null) {
+        debugPrint('🔴 No user logged in');
+        return false;
+      }
+
+      debugPrint('🔐 Re-authenticating user: ${user.email}');
+
+      // Create credential with current password
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+
+      // Re-authenticate
+      await user.reauthenticateWithCredential(credential);
+      debugPrint('✅ Re-authentication successful');
+      return true;
+    } on FirebaseAuthException catch (e) {
+      debugPrint('🔴 Re-authentication failed: ${e.code}');
+      debugPrint('🔴 Error message: ${e.message}');
+
+      String errorMessage;
+      switch (e.code) {
+        case 'wrong-password':
+        case 'invalid-credential':
+          errorMessage = 'Current password is incorrect';
+          break;
+        case 'user-not-found':
+          errorMessage = 'User account not found';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Too many attempts. Please try again later';
+          break;
+        case 'network-request-failed':
+          errorMessage = 'Network error. Check your connection';
+          break;
+        default:
+          errorMessage = 'Authentication failed. Please try again';
+      }
+
+      setState(() => _currentPasswordError = errorMessage);
+      return false;
+    } catch (e) {
+      debugPrint('🔴 Unexpected error during re-authentication: $e');
+      setState(() => _currentPasswordError = 'An unexpected error occurred');
+      return false;
+    }
+  }
+
+  /// ✅ Update password in Firebase
+  Future<bool> _updatePassword(String newPassword) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        debugPrint('🔴 No user logged in');
+        return false;
+      }
+
+      debugPrint('🔐 Updating password for user: ${user.email}');
+
+      // Update password
+      await user.updatePassword(newPassword);
+      debugPrint('✅ Password updated successfully in Firebase');
+      return true;
+    } on FirebaseAuthException catch (e) {
+      debugPrint('🔴 Password update failed: ${e.code}');
+      debugPrint('🔴 Error message: ${e.message}');
+
+      String errorMessage;
+      switch (e.code) {
+        case 'weak-password':
+          errorMessage = 'Password is too weak';
+          break;
+        case 'requires-recent-login':
+          errorMessage = 'Please log out and log back in, then try again';
+          break;
+        default:
+          errorMessage = 'Failed to update password. Please try again';
+      }
+
+      setState(() => _newPasswordError = errorMessage);
+      return false;
+    } catch (e) {
+      debugPrint('🔴 Unexpected error updating password: $e');
+      setState(() => _newPasswordError = 'An unexpected error occurred');
+      return false;
+    }
+  }
+
+  /// ✅ Handle password change with Firebase
   Future<void> _handleChangePassword() async {
     // Clear any existing errors
     setState(() {
@@ -108,34 +200,61 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return;
     }
 
-    // TODO Day 2: Add Firebase re-authentication
-    // TODO Day 2: Update password in Firebase
-
-    // Day 1: Show success message (mock)
     setState(() => _isLoading = true);
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Step 1: Re-authenticate with current password
+      final isAuthenticated = await _reauthenticateUser(
+        _currentPasswordCtrl.text,
+      );
 
-    setState(() => _isLoading = false);
+      if (!isAuthenticated) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
-    if (!mounted) return;
+      // Step 2: Update to new password
+      final isUpdated = await _updatePassword(_newPasswordCtrl.text);
 
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          '✅ Password validation successful! (Firebase integration coming in Day 2)',
-        ),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 3),
-      ),
-    );
+      setState(() => _isLoading = false);
 
-    // Clear fields after success
-    _currentPasswordCtrl.clear();
-    _newPasswordCtrl.clear();
-    _confirmPasswordCtrl.clear();
+      if (!mounted) return;
+
+      if (isUpdated) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Password changed successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+
+        // Clear fields after success
+        _currentPasswordCtrl.clear();
+        _newPasswordCtrl.clear();
+        _confirmPasswordCtrl.clear();
+
+        // Optional: Go back to profile screen
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      debugPrint('🔴 Unexpected error in password change flow: $e');
+      setState(() => _isLoading = false);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('An unexpected error occurred. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   @override
