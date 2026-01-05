@@ -1,4 +1,4 @@
-// lib/features/auth/providers/auth_provider.dart - FIXED
+// lib/features/auth/providers/auth_provider.dart - FIXED WITH clearError()
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -33,6 +33,11 @@ class AuthProvider with ChangeNotifier {
 
   bool _biometricTriggered = false;
   bool get biometricTriggered => _biometricTriggered;
+
+  /// ✅ Clear error message (for password re-verification)
+  void clearError() {
+    _errorMessage = null;
+  }
 
   void setLoginType(LoginType type) {
     _loginType = type;
@@ -127,7 +132,6 @@ class AuthProvider with ChangeNotifier {
 
     if (success && enableBiometric) {
       try {
-        // ✅ FIXED: Include UID
         final uid = _auth.currentUser?.uid;
         if (uid != null) {
           await _biometricService.enableBiometric(
@@ -169,7 +173,6 @@ class AuthProvider with ChangeNotifier {
 
       if (enableBiometric) {
         try {
-          // ✅ FIXED: Include UID
           final uid = _auth.currentUser?.uid;
           if (uid != null) {
             await _biometricService.enableBiometric(
@@ -249,7 +252,6 @@ class AuthProvider with ChangeNotifier {
 
         case 'google':
         case 'facebook':
-          // ✅ Check if session is still valid
           if (isAuthenticated && _auth.currentUser?.uid == storedUid) {
             debugPrint('✅ Valid session found. UID matches: $storedUid');
             _isLoading = false;
@@ -257,7 +259,6 @@ class AuthProvider with ChangeNotifier {
             return true;
           }
 
-          // Session expired
           debugPrint('⚠️ Session expired for $loginTypeStr user');
           _errorMessage = 'Your session expired. Please login manually.';
           await _biometricService.disableBiometric();
