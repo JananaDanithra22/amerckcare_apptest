@@ -1,4 +1,4 @@
-// lib/features/settings/screens/enable_biometric_screen.dart - FIXED
+// lib/features/settings/screens/enable_biometric_screen.dart - PROPERLY FIXED
 
 import 'package:AmerckCare/features/auth/providers/auth_provider.dart';
 import 'package:AmerckCare/features/auth/services/auth_service.dart';
@@ -95,6 +95,7 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
         email = currentUser.email!;
         password = _passwordCtrl.text;
 
+        // ✅ Validate password format
         final passErr = Validators.validatePassword(password);
         if (passErr != null) {
           _formKey.currentState?.validate();
@@ -102,18 +103,29 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
           return;
         }
 
-        // Verify credentials
+        // ✅ CRITICAL FIX: Verify credentials with Firebase BEFORE enabling biometric
         final authService = AuthService(authProvider);
+
+        debugPrint('🔐 Verifying password with Firebase...');
         final loginResult = await authService.loginWithOverlay(email, password);
+
+        // ✅ CRITICAL: Stop loading BEFORE checking result
+        setState(() => _isLoading = false);
 
         if (!mounted) return;
 
+        // ✅ CRITICAL: Check if login actually succeeded
         if (!loginResult.success) {
+          debugPrint('🔴 Password verification failed: ${loginResult.error}');
           final message = AuthErrorParser.getGenericMessage(loginResult.error);
           _showError(message);
-          setState(() => _isLoading = false);
-          return;
+          return; // ❌ STOP HERE - Don't enable biometric if password is wrong
         }
+
+        debugPrint('✅ Password verified successfully');
+
+        // ✅ Restart loading for biometric setup
+        setState(() => _isLoading = true);
       } else {
         // ✅ SSO: Use email if available, otherwise 'no-email'
         email = currentUser.email ?? 'no-email';
@@ -144,7 +156,7 @@ class _EnableBiometricScreenState extends State<EnableBiometricScreen>
         return;
       }
 
-      // ✅ FIXED: Call with 3 parameters (email, password, uid)
+      // ✅ Only reach here if password was verified (for email/password users)
       await _biometricService.enableBiometric(
         email,
         password,
