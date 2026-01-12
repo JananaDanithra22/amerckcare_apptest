@@ -1,3 +1,4 @@
+// lib/features/auth/widgets/custom_text_field.dart
 import 'package:flutter/material.dart';
 
 class CustomTextField extends StatelessWidget {
@@ -19,7 +20,7 @@ class CustomTextField extends StatelessWidget {
     this.onToggleVisibility,
     this.onChanged,
     this.keyboardType,
-    this.borderRadius = 12.0,
+    this.borderRadius = 12.0, required String? Function(dynamic value) validator,
   }) : super(key: key);
 
   @override

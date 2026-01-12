@@ -1,3 +1,4 @@
+// lib/features/auth/widgets/background_line_art.dart
 import 'package:flutter/material.dart';
 
 class BackgroundLineArtPainter extends CustomPainter {

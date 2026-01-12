@@ -1,3 +1,4 @@
+// lib/features/auth/domain/providers/google_auth_provider.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../auth_provider_interface.dart';
