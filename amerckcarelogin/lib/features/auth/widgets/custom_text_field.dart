@@ -1,6 +1,9 @@
 // lib/features/auth/widgets/custom_text_field.dart
+
 import 'package:flutter/material.dart';
 
+/// Custom text field widget with error handling and visibility toggle
+/// Provides consistent styling across the application
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
@@ -10,6 +13,8 @@ class CustomTextField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final TextInputType? keyboardType;
   final double borderRadius;
+  final String? Function(String?)?
+  validator; // ✅ Fixed: Changed from dynamic to String?
 
   const CustomTextField({
     Key? key,
@@ -20,7 +25,8 @@ class CustomTextField extends StatelessWidget {
     this.onToggleVisibility,
     this.onChanged,
     this.keyboardType,
-    this.borderRadius = 12.0, required String? Function(dynamic value) validator,
+    this.borderRadius = 12.0,
+    this.validator,
   }) : super(key: key);
 
   @override

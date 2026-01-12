@@ -1,5 +1,4 @@
 // lib/features/profile/screens/change_password_screen.dart
-// Complete Firebase Authentication Integration
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,7 +7,8 @@ import '../../../core/constants/ui_constants.dart';
 import '../../auth/widgets/custom_text_field.dart';
 import '../../auth/widgets/custom_button.dart';
 
-/// Change Password Screen with Firebase Integration
+/// Screen for changing user password
+/// Follows clean code principles with separated concerns
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({Key? key}) : super(key: key);
 
@@ -19,10 +19,10 @@ class ChangePasswordScreen extends StatefulWidget {
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers for password fields
-  final _currentPasswordCtrl = TextEditingController();
-  final _newPasswordCtrl = TextEditingController();
-  final _confirmPasswordCtrl = TextEditingController();
+  // Text controllers
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   // Visibility toggles
   bool _obscureCurrentPassword = true;
@@ -39,13 +39,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   void dispose() {
-    _currentPasswordCtrl.dispose();
-    _newPasswordCtrl.dispose();
-    _confirmPasswordCtrl.dispose();
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  /// Validate all fields
+  /// Validate all password fields
   bool _validateFields() {
     setState(() {
       _currentPasswordError = null;
@@ -56,156 +56,140 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     bool isValid = true;
 
     // Validate current password
-    final currentPassValidation = Validators.validatePassword(
-      _currentPasswordCtrl.text,
+    final currentError = Validators.validatePassword(
+      _currentPasswordController.text,
     );
-    if (currentPassValidation != null) {
-      setState(() => _currentPasswordError = currentPassValidation);
+    if (currentError != null) {
+      setState(() => _currentPasswordError = currentError);
       isValid = false;
     }
 
     // Validate new password
-    final newPassValidation = Validators.validatePassword(
-      _newPasswordCtrl.text,
-    );
-    if (newPassValidation != null) {
-      setState(() => _newPasswordError = newPassValidation);
+    final newError = Validators.validatePassword(_newPasswordController.text);
+    if (newError != null) {
+      setState(() => _newPasswordError = newError);
       isValid = false;
-    } else if (_newPasswordCtrl.text == _currentPasswordCtrl.text) {
-      setState(
-        () =>
-            _newPasswordError =
-                'New password must be different from current password',
-      );
+    } else if (_newPasswordController.text == _currentPasswordController.text) {
+      setState(() {
+        _newPasswordError =
+            'New password must be different from current password';
+      });
       isValid = false;
     }
 
     // Validate confirm password
-    final confirmPassValidation = Validators.validateConfirmPassword(
-      _newPasswordCtrl.text,
-      _confirmPasswordCtrl.text,
+    final confirmError = Validators.validateConfirmPassword(
+      _newPasswordController.text,
+      _confirmPasswordController.text,
     );
-    if (confirmPassValidation != null) {
-      setState(() => _confirmPasswordError = confirmPassValidation);
+    if (confirmError != null) {
+      setState(() => _confirmPasswordError = confirmError);
       isValid = false;
     }
 
     return isValid;
   }
 
-  /// ✅ Re-authenticate user with current password (REQUIRED by Firebase)
+  /// Re-authenticate user with current password
   Future<bool> _reauthenticateUser(String currentPassword) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null || user.email == null) {
-        debugPrint('🔴 No user logged in');
+        debugPrint('No user logged in');
         return false;
       }
 
-      debugPrint('🔐 Re-authenticating user: ${user.email}');
-
-      // Create credential with current password
       final credential = EmailAuthProvider.credential(
         email: user.email!,
         password: currentPassword,
       );
 
-      // Re-authenticate
       await user.reauthenticateWithCredential(credential);
-      debugPrint('✅ Re-authentication successful');
       return true;
     } on FirebaseAuthException catch (e) {
-      debugPrint('🔴 Re-authentication failed: ${e.code}');
-      debugPrint('🔴 Error message: ${e.message}');
-
-      String errorMessage;
-      switch (e.code) {
-        case 'wrong-password':
-        case 'invalid-credential':
-          errorMessage = 'Current password is incorrect';
-          break;
-        case 'user-not-found':
-          errorMessage = 'User account not found';
-          break;
-        case 'too-many-requests':
-          errorMessage = 'Too many attempts. Please try again later';
-          break;
-        case 'network-request-failed':
-          errorMessage = 'Network error. Check your connection';
-          break;
-        default:
-          errorMessage = 'Authentication failed. Please try again';
-      }
-
-      setState(() => _currentPasswordError = errorMessage);
+      _handleReauthenticationError(e);
       return false;
     } catch (e) {
-      debugPrint('🔴 Unexpected error during re-authentication: $e');
-      setState(() => _currentPasswordError = 'An unexpected error occurred');
+      setState(() {
+        _currentPasswordError = 'An unexpected error occurred';
+      });
       return false;
     }
   }
 
-  /// ✅ Update password in Firebase
+  /// Handle re-authentication errors
+  void _handleReauthenticationError(FirebaseAuthException e) {
+    String errorMessage;
+
+    switch (e.code) {
+      case 'wrong-password':
+      case 'invalid-credential':
+        errorMessage = 'Current password is incorrect';
+        break;
+      case 'user-not-found':
+        errorMessage = 'User account not found';
+        break;
+      case 'too-many-requests':
+        errorMessage = 'Too many attempts. Please try again later';
+        break;
+      case 'network-request-failed':
+        errorMessage = 'Network error. Check your connection';
+        break;
+      default:
+        errorMessage = 'Authentication failed. Please try again';
+    }
+
+    setState(() => _currentPasswordError = errorMessage);
+  }
+
+  /// Update password in Firebase
   Future<bool> _updatePassword(String newPassword) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        debugPrint('🔴 No user logged in');
-        return false;
-      }
+      if (user == null) return false;
 
-      debugPrint('🔐 Updating password for user: ${user.email}');
-
-      // Update password
       await user.updatePassword(newPassword);
-      debugPrint('✅ Password updated successfully in Firebase');
       return true;
     } on FirebaseAuthException catch (e) {
-      debugPrint('🔴 Password update failed: ${e.code}');
-      debugPrint('🔴 Error message: ${e.message}');
-
-      String errorMessage;
-      switch (e.code) {
-        case 'weak-password':
-          errorMessage = 'Password is too weak';
-          break;
-        case 'requires-recent-login':
-          errorMessage = 'Please log out and log back in, then try again';
-          break;
-        default:
-          errorMessage = 'Failed to update password. Please try again';
-      }
-
-      setState(() => _newPasswordError = errorMessage);
+      _handleUpdatePasswordError(e);
       return false;
     } catch (e) {
-      debugPrint('🔴 Unexpected error updating password: $e');
-      setState(() => _newPasswordError = 'An unexpected error occurred');
+      setState(() {
+        _newPasswordError = 'An unexpected error occurred';
+      });
       return false;
     }
   }
 
-  /// ✅ Handle password change with Firebase
-  Future<void> _handleChangePassword() async {
-    // Clear any existing errors
-    setState(() {
-      _currentPasswordError = null;
-      _newPasswordError = null;
-      _confirmPasswordError = null;
-    });
+  /// Handle password update errors
+  void _handleUpdatePasswordError(FirebaseAuthException e) {
+    String errorMessage;
 
-    // Validate all fields
-    if (!_validateFields()) {
-      return;
+    switch (e.code) {
+      case 'weak-password':
+        errorMessage = 'Password is too weak';
+        break;
+      case 'requires-recent-login':
+        errorMessage = 'Please log out and log back in, then try again';
+        break;
+      default:
+        errorMessage = 'Failed to update password. Please try again';
     }
+
+    setState(() => _newPasswordError = errorMessage);
+  }
+
+  /// Handle password change process
+  Future<void> _handleChangePassword() async {
+    // Clear errors and validate
+    if (!_validateFields()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Step 1: Re-authenticate with current password
+      // Step 1: Re-authenticate
       final isAuthenticated = await _reauthenticateUser(
-        _currentPasswordCtrl.text,
+        _currentPasswordController.text,
       );
 
       if (!isAuthenticated) {
@@ -213,179 +197,79 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         return;
       }
 
-      // Step 2: Update to new password
-      final isUpdated = await _updatePassword(_newPasswordCtrl.text);
+      // Step 2: Update password
+      final isUpdated = await _updatePassword(_newPasswordController.text);
 
       setState(() => _isLoading = false);
 
       if (!mounted) return;
 
       if (isUpdated) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Password changed successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-
-        // Clear fields after success
-        _currentPasswordCtrl.clear();
-        _newPasswordCtrl.clear();
-        _confirmPasswordCtrl.clear();
-
-        // Optional: Go back to profile screen
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) {
-          Navigator.pop(context);
-        }
+        _showSuccessAndNavigateBack();
       }
     } catch (e) {
-      debugPrint('🔴 Unexpected error in password change flow: $e');
+      debugPrint('Unexpected error: $e');
       setState(() => _isLoading = false);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('An unexpected error occurred. Please try again.'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
+        _showErrorSnackbar('An unexpected error occurred');
       }
     }
+  }
+
+  /// Show success message and navigate back
+  void _showSuccessAndNavigateBack() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✅ Password changed successfully!'),
+        backgroundColor: UIConstants.successGreen,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    // Clear fields
+    _currentPasswordController.clear();
+    _newPasswordController.clear();
+    _confirmPasswordController.clear();
+
+    // Navigate back
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) Navigator.pop(context);
+    });
+  }
+
+  /// Show error snackbar
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: UIConstants.errorRed,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: const Text('Change Password'),
-        elevation: 0,
-        backgroundColor: const Color(0xFF1C8AE5),
-        foregroundColor: Colors.white,
-      ),
+      backgroundColor: UIConstants.lightGrey,
+      appBar: _buildAppBar(),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(UIConstants.spacingL),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Info Card
               _buildInfoCard(),
-
-              const SizedBox(height: 24),
-
-              // Password Requirements Card
+              const SizedBox(height: UIConstants.spacingL),
               _buildPasswordRequirements(),
-
-              const SizedBox(height: 24),
-
-              // Current Password Field
-              const Text(
-                'Current Password',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              CustomTextField(
-                controller: _currentPasswordCtrl,
-                hintText: 'Enter your current password',
-                errorText: _currentPasswordError,
-                obscureText: _obscureCurrentPassword,
-                onToggleVisibility: () {
-                  setState(
-                    () => _obscureCurrentPassword = !_obscureCurrentPassword,
-                  );
-                },
-                onChanged: (value) {
-                  if (_currentPasswordError != null) {
-                    setState(() => _currentPasswordError = null);
-                  }
-                },
-                validator: (value) {},
-              ),
-
-              const SizedBox(height: 20),
-
-              // New Password Field
-              const Text(
-                'New Password',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              CustomTextField(
-                controller: _newPasswordCtrl,
-                hintText: 'Enter your new password',
-                errorText: _newPasswordError,
-                obscureText: _obscureNewPassword,
-                onToggleVisibility: () {
-                  setState(() => _obscureNewPassword = !_obscureNewPassword);
-                },
-                onChanged: (value) {
-                  if (_newPasswordError != null) {
-                    setState(() => _newPasswordError = null);
-                  }
-                },
-                validator: (value) {},
-              ),
-
-              const SizedBox(height: 20),
-
-              // Confirm New Password Field
-              const Text(
-                'Confirm New Password',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              CustomTextField(
-                controller: _confirmPasswordCtrl,
-                hintText: 'Re-enter your new password',
-                errorText: _confirmPasswordError,
-                obscureText: _obscureConfirmPassword,
-                onToggleVisibility: () {
-                  setState(
-                    () => _obscureConfirmPassword = !_obscureConfirmPassword,
-                  );
-                },
-                onChanged: (value) {
-                  if (_confirmPasswordError != null) {
-                    setState(() => _confirmPasswordError = null);
-                  }
-                },
-                validator: (value) {},
-              ),
-
-              const SizedBox(height: 32),
-
-              // Change Password Button
-              Center(
-                child: CustomButton(
-                  text: 'Change Password',
-                  onPressed: _handleChangePassword,
-                  isLoading: _isLoading,
-                  backgroundColor: const Color(0xFF1C8AE5),
-                  width: UIConstants.buttonWidth,
-                  height: UIConstants.buttonHeight,
-                  borderRadius: UIConstants.buttonRadius,
-                ),
-              ),
-
-              const SizedBox(height: 24),
+              const SizedBox(height: UIConstants.spacingL),
+              _buildPasswordFields(),
+              const SizedBox(height: UIConstants.spacingXl),
+              _buildSubmitButton(),
             ],
           ),
         ),
@@ -393,25 +277,36 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  /// Info Card explaining the process
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: const Text('Change Password'),
+      elevation: 0,
+      backgroundColor: UIConstants.primaryBlue,
+      foregroundColor: Colors.white,
+    );
+  }
+
   Widget _buildInfoCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(UIConstants.spacingM),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200),
+        color: UIConstants.infoBlue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(UIConstants.radiusM),
+        border: Border.all(color: UIConstants.infoBlue.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, color: Colors.blue.shade700, size: 24),
-          const SizedBox(width: 12),
+          Icon(
+            Icons.info_outline,
+            color: UIConstants.infoBlue.withOpacity(0.8),
+            size: 24,
+          ),
+          const SizedBox(width: UIConstants.spacingM),
           Expanded(
             child: Text(
               'For your security, you\'ll need to enter your current password before setting a new one.',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.blue.shade900,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: UIConstants.infoBlue.withOpacity(0.9),
                 height: 1.4,
               ),
             ),
@@ -421,13 +316,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  /// Password Requirements Card
   Widget _buildPasswordRequirements() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(UIConstants.spacingM),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(UIConstants.radiusM),
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
@@ -436,18 +330,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           Row(
             children: [
               Icon(Icons.lock_outline, color: Colors.grey.shade700, size: 20),
-              const SizedBox(width: 8),
-              const Text(
+              const SizedBox(width: UIConstants.spacingS),
+              Text(
                 'Password Requirements',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: UIConstants.spacingM),
           _buildRequirement('At least 6 characters long'),
           _buildRequirement('Different from your current password'),
           _buildRequirement('Contains letters and numbers (recommended)'),
@@ -456,25 +348,117 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  /// Individual requirement item
   Widget _buildRequirement(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: UIConstants.spacingS),
       child: Row(
         children: [
           Icon(
             Icons.check_circle_outline,
             size: 16,
-            color: Colors.green.shade600,
+            color: UIConstants.successGreen.withOpacity(0.8),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: UIConstants.spacingS),
           Expanded(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-            ),
+            child: Text(text, style: Theme.of(context).textTheme.bodySmall),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPasswordFields() {
+    return Column(
+      children: [
+        _buildPasswordField(
+          label: 'Current Password',
+          controller: _currentPasswordController,
+          errorText: _currentPasswordError,
+          obscureText: _obscureCurrentPassword,
+          onToggle: () {
+            setState(() => _obscureCurrentPassword = !_obscureCurrentPassword);
+          },
+          onChanged: () {
+            if (_currentPasswordError != null) {
+              setState(() => _currentPasswordError = null);
+            }
+          },
+        ),
+        const SizedBox(height: UIConstants.spacingL),
+        _buildPasswordField(
+          label: 'New Password',
+          controller: _newPasswordController,
+          errorText: _newPasswordError,
+          obscureText: _obscureNewPassword,
+          onToggle: () {
+            setState(() => _obscureNewPassword = !_obscureNewPassword);
+          },
+          onChanged: () {
+            if (_newPasswordError != null) {
+              setState(() => _newPasswordError = null);
+            }
+          },
+        ),
+        const SizedBox(height: UIConstants.spacingL),
+        _buildPasswordField(
+          label: 'Confirm New Password',
+          controller: _confirmPasswordController,
+          errorText: _confirmPasswordError,
+          obscureText: _obscureConfirmPassword,
+          onToggle: () {
+            setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
+          },
+          onChanged: () {
+            if (_confirmPasswordError != null) {
+              setState(() => _confirmPasswordError = null);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPasswordField({
+    required String label,
+    required TextEditingController controller,
+    required String? errorText,
+    required bool obscureText,
+    required VoidCallback onToggle,
+    required VoidCallback onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: UIConstants.spacingS),
+        CustomTextField(
+          controller: controller,
+          hintText: 'Enter $label',
+          errorText: errorText,
+          obscureText: obscureText,
+          onToggleVisibility: onToggle,
+          onChanged: (_) => onChanged(),
+          validator: Validators.validatePassword,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return Center(
+      child: CustomButton(
+        text: 'Change Password',
+        onPressed: _handleChangePassword,
+        isLoading: _isLoading,
+        backgroundColor: UIConstants.primaryBlue,
+        width: UIConstants.buttonWidth,
+        height: UIConstants.buttonHeight,
+        borderRadius: UIConstants.buttonRadius,
       ),
     );
   }
