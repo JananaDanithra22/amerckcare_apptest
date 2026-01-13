@@ -33,7 +33,6 @@ class AppDrawer extends StatelessWidget {
                   title: 'Home',
                   onTap: () {
                     Navigator.pop(context); // Close drawer
-                    // Already on home, no navigation needed
                   },
                 ),
                 _buildMenuItem(
@@ -42,7 +41,7 @@ class AppDrawer extends StatelessWidget {
                   title: 'Profile',
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.pushNamed(context, AppRoutes.profile);
+                    AppRoutes.toProfile(context);
                   },
                 ),
                 _buildMenuItem(
@@ -51,7 +50,7 @@ class AppDrawer extends StatelessWidget {
                   title: 'Settings',
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.pushNamed(context, AppRoutes.settings);
+                    AppRoutes.toSettings(context);
                   },
                 ),
                 const Divider(),
@@ -69,17 +68,17 @@ class AppDrawer extends StatelessWidget {
                 _buildMenuItem(
                   context,
                   icon: Icons.info_outline,
-                  title: 'About',
+                  title: 'About Us',
                   onTap: () {
                     Navigator.pop(context);
-                    _showAboutDialog(context);
+                    AppRoutes.toAboutUs(context);
                   },
                 ),
               ],
             ),
           ),
 
-          // ✅ Session Status Indicator (Optional)
+          // ✅ Session Status Indicator
           if (SessionManager().isSessionActive)
             Container(
               padding: const EdgeInsets.all(12),
@@ -143,9 +142,8 @@ class AppDrawer extends StatelessWidget {
       ),
       currentAccountPicture: GestureDetector(
         onTap: () {
-          // Navigate to profile when avatar is tapped
-          Navigator.pop(context); // Close drawer first
-          Navigator.pushNamed(context, AppRoutes.profile);
+          Navigator.pop(context);
+          AppRoutes.toProfile(context);
         },
         child: CircleAvatar(
           backgroundColor: Colors.white,
@@ -200,37 +198,6 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  /// Show about dialog
-  void _showAboutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('About AmerckCare'),
-            content: const Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Version 1.0.0'),
-                SizedBox(height: 8),
-                Text('© 2024 AmerckCare'),
-                SizedBox(height: 16),
-                Text(
-                  'Your trusted healthcare companion',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
-              ),
-            ],
-          ),
-    );
-  }
-
   IconData _getLoginTypeIcon(LoginType type) {
     switch (type) {
       case LoginType.google:
@@ -265,51 +232,24 @@ class _LogoutButton extends StatelessWidget {
   }
 
   Future<void> _handleLogout(BuildContext context) async {
-    debugPrint('🔵 Logout button tapped');
-
-    // ✅ FIX: Get the navigator BEFORE showing dialog
     final navigator = Navigator.of(context);
 
-    // Show dialog BEFORE closing drawer
     final shouldLogout = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => const _LogoutConfirmDialog(),
     );
 
-    debugPrint('🔍 Dialog result: $shouldLogout');
-    debugPrint('🔍 Context mounted: ${context.mounted}');
-
     if (shouldLogout == true) {
-      debugPrint('🔴 User confirmed logout');
-
       try {
-        // Close drawer first
         navigator.pop();
-        debugPrint('✅ Drawer closed');
-
-        // Stop session monitoring
         SessionManager().stopSession();
-        debugPrint('🛑 Session monitoring stopped');
-
-        // Perform logout (clears auth state)
         await auth.logout();
-        debugPrint('✅ Auth logout completed');
-
-        // ✅ Navigate to login screen and clear all navigation history
-        // Use the navigator we captured earlier
-        navigator.pushNamedAndRemoveUntil(
-          AppRoutes.login,
-          (route) => false, // Remove all previous routes
-        );
-        debugPrint('✅ Navigated to login screen');
+        navigator.pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
       } catch (e) {
-        debugPrint('🔴 Error during logout: $e');
-        // Even if there's an error, try to navigate to login
+        debugPrint('Error during logout: $e');
         navigator.pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
       }
-    } else {
-      debugPrint('❌ Logout cancelled by user');
     }
   }
 }
@@ -349,10 +289,7 @@ class _LogoutConfirmDialog extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {
-                      debugPrint('🔵 Cancel button pressed');
-                      Navigator.of(context).pop(false);
-                    },
+                    onPressed: () => Navigator.of(context).pop(false),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       side: const BorderSide(color: Colors.grey, width: 2),
@@ -373,10 +310,7 @@ class _LogoutConfirmDialog extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      debugPrint('🔴 Log Out button pressed');
-                      Navigator.of(context).pop(true);
-                    },
+                    onPressed: () => Navigator.of(context).pop(true),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       backgroundColor: Colors.red,
