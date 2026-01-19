@@ -60,9 +60,7 @@ class AppDrawer extends StatelessWidget {
                   title: 'Help & Support',
                   onTap: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Help coming soon')),
-                    );
+                    AppRoutes.toHelpSupport(context);
                   },
                 ),
                 _buildMenuItem(
