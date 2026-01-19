@@ -8,6 +8,8 @@ import '../shared/widgets/splash_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
 import '../features/profile/screens/change_password_screen.dart';
+import '../features/about/screens/about_us_screen.dart';
+import '../features/help/screens/help_support_screen.dart';
 
 /// Centralized route configuration for the application
 /// Uses named routes for better navigation management
@@ -24,6 +26,8 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String profile = '/profile';
   static const String changePassword = '/change-password';
+  static const String aboutUs = '/about-us';
+  static const String helpSupport = '/help-support';
 
   /// Returns a map of all app routes
   /// Each route is lazily instantiated when needed
@@ -37,6 +41,8 @@ class AppRoutes {
       settings: (_) => const SettingsScreen(),
       profile: (_) => const ProfileScreen(),
       changePassword: (_) => const ChangePasswordScreen(),
+      aboutUs: (_) => const AboutUsScreen(),
+      helpSupport: (_) => const HelpSupportScreen(),
     };
   }
 
@@ -76,6 +82,16 @@ class AppRoutes {
   /// Navigate to change password screen
   static Future<void> toChangePassword(BuildContext context) {
     return Navigator.pushNamed(context, changePassword);
+  }
+
+  /// Navigate to about us screen
+  static Future<void> toAboutUs(BuildContext context) {
+    return Navigator.pushNamed(context, aboutUs);
+  }
+
+  /// Navigate to help and support screen
+  static Future<void> toHelpSupport(BuildContext context) {
+    return Navigator.pushNamed(context, helpSupport);
   }
 
   /// Navigate to splash screen (replaces current route)
