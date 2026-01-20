@@ -175,17 +175,17 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             FaqItem(
               question: 'How do I create an account?',
               answer:
-                  'You can create an account by downloading the AmerckCare app and tapping "Sign Up" on the login screen. You can register using your email, Google account, or Facebook account. Follow the on-screen instructions to complete your profile.',
+                  'Download the AmerckCare app and tap "Sign Up" on the login screen. You can register using your email, Google, or Facebook by following the on-screen steps.',
             ),
             FaqItem(
               question: 'How do I enable biometric login?',
               answer:
-                  'After logging in, go to Settings > Biometric Login and toggle it on. You\'ll be prompted to verify your password (for email users) or authenticate with your current login method. Once enabled, you can use fingerprint or face recognition to quickly access your account.',
+                  'Go to Settings > Biometric Login and turn it on. Verify your login details, then use fingerprint or face recognition to sign in.',
             ),
             FaqItem(
               question: 'What login methods are supported?',
               answer:
-                  'AmerckCare supports three login methods: Email/Password, Google Sign-In, and Facebook Sign-In. You can also enable biometric authentication (fingerprint or face recognition) for faster access after your initial login.',
+                  'You can log in using Email/Password, Google Sign-In, or Facebook Sign-In. Biometric login is also available after first login.',
             ),
           ]),
           const SizedBox(height: UIConstants.spacingM),
@@ -193,22 +193,22 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             FaqItem(
               question: 'How do I reset my password?',
               answer:
-                  'On the login screen, tap "Forgot Password?" and enter your registered email address. You\'ll receive an email with instructions to reset your password. Check your spam folder if you don\'t see the email within a few minutes.',
+                  'Tap "Forgot Password?" on the login screen, enter your email, and follow the reset instructions sent to your email.',
             ),
             FaqItem(
               question: 'Is my health data secure?',
               answer:
-                  'Yes, your data is fully encrypted and stored securely. AmerckCare is HIPAA compliant and follows SOC 2 standards. We use enterprise-grade security measures including end-to-end encryption, secure authentication, and regular security audits to protect your information.',
+                  'Yes. Your data is encrypted and securely stored using industry-standard security practices.',
             ),
             FaqItem(
               question: 'Can I change my password?',
               answer:
-                  'Yes! Go to Profile > Change Password. You\'ll need to enter your current password, then set and confirm your new password. For security, your new password must be at least 6 characters long and different from your current password.',
+                  'Yes. Go to Profile > Change Password and enter your current password to set a new one.',
             ),
             FaqItem(
               question: 'What happens if I\'m inactive for too long?',
               answer:
-                  'For your security, AmerckCare automatically logs you out after 5 minutes of inactivity. You\'ll receive a warning 1 minute before automatic logout, giving you the option to stay signed in. This helps protect your sensitive health information.',
+                  'The app automatically logs you out after 5 minutes of inactivity to keep your data secure.',
             ),
           ]),
           const SizedBox(height: UIConstants.spacingM),
@@ -216,17 +216,17 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             FaqItem(
               question: 'How do I view my patient records?',
               answer:
-                  'Your patient records are accessible from the home screen. Tap on "Patient Profile" to view your complete medical history, including past appointments, prescriptions, lab results, and clinical notes in one centralized timeline.',
+                  'Open the home screen and tap "Patient Profile" to see your medical history and records.',
             ),
             FaqItem(
               question: 'Can I access the app offline?',
               answer:
-                  'Some features require an internet connection, such as syncing new data and accessing cloud-stored records. However, you can view previously loaded information offline. The app will automatically sync when you reconnect to the internet.',
+                  'You can view previously loaded data offline, but an internet connection is needed to sync new information.',
             ),
             FaqItem(
               question: 'How do prescriptions work?',
               answer:
-                  'Your healthcare provider can create e-prescriptions directly through the AmerckCare system. You\'ll receive notifications when new prescriptions are available, and you can view them in your patient profile. The system includes safety alerts for drug interactions and allergies.',
+                  'Your doctor sends prescriptions through the app. You can view them in your patient profile.',
             ),
           ]),
           const SizedBox(height: UIConstants.spacingM),
@@ -234,17 +234,17 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             FaqItem(
               question: 'The app won\'t let me log in',
               answer:
-                  'First, check your internet connection. Make sure you\'re entering the correct email and password. If you\'ve forgotten your password, use "Forgot Password?" to reset it. If you continue to have issues, try logging in with a different method (Google/Facebook) or contact support.',
+                  'Check your internet connection and login details. Use "Forgot Password?" or try another login method if needed.',
             ),
             FaqItem(
               question: 'Biometric login stopped working',
               answer:
-                  'This can happen if you\'ve changed your device\'s biometric settings or logged in from a different account. Go to Settings > Biometric Login, toggle it off, then back on. You\'ll need to re-authenticate to set it up again.',
+                  'Turn biometric login off and on again in Settings, then re-authenticate to set it up.',
             ),
             FaqItem(
               question: 'I\'m not receiving notifications',
               answer:
-                  'Check that notifications are enabled for AmerckCare in your device settings. In the app, go to Settings > Notifications and ensure they\'re turned on. You may need to restart the app after changing notification settings.',
+                  'Make sure notifications are enabled in both your device settings and the app settings.',
             ),
           ]),
         ],
