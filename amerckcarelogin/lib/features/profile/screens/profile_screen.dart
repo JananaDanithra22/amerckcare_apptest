@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../../config/routes.dart';
+import '../../../core/constants/ui_constants.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -35,11 +35,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     };
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: UIConstants.lightGrey,
       appBar: AppBar(
         title: const Text('My Profile'),
         elevation: 0,
-        backgroundColor: const Color(0xFF1C8AE5),
+        backgroundColor: UIConstants.primaryBlue,
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -48,32 +48,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Profile Header Card
             _buildProfileHeader(context, firstChar, doctorData, auth),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: UIConstants.spacingM),
 
             // Quick Stats
             _buildQuickStats(doctorData),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: UIConstants.spacingM),
 
             // Professional Information
             _buildProfessionalInfo(doctorData),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: UIConstants.spacingM),
 
             // Contact Information
             _buildContactInfo(doctorData),
 
-            const SizedBox(height: 16),
-
-            // Account Settings
-            _buildAccountSettings(context),
-
-            const SizedBox(height: 16),
-
-            // App Settings
-            _buildAppSettings(context),
-
-            const SizedBox(height: 24),
+            const SizedBox(height: UIConstants.spacingXl),
           ],
         ),
       ),
@@ -89,16 +79,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   ) {
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1C8AE5), Color(0xFF0650A2)],
-        ),
-      ),
+      decoration: const BoxDecoration(gradient: UIConstants.primaryGradient),
       child: Column(
         children: [
-          const SizedBox(height: 24),
+          const SizedBox(height: UIConstants.spacingL),
           // Profile Picture
           Stack(
             children: [
@@ -109,14 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   shape: BoxShape.circle,
                   color: Colors.white,
                   border: Border.all(color: Colors.white, width: 4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      spreadRadius: 2,
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  boxShadow: UIConstants.shadowMedium,
                 ),
                 child: Center(
                   child: Text(
@@ -124,7 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: const TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1C8AE5),
+                      color: UIConstants.primaryBlue,
                     ),
                   ),
                 ),
@@ -133,17 +110,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 bottom: 0,
                 right: 0,
                 child: Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(UIConstants.spacingS),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        spreadRadius: 1,
-                        blurRadius: 4,
-                      ),
-                    ],
+                    boxShadow: UIConstants.shadowLight,
                   ),
                   child: Icon(
                     Icons.camera_alt,
@@ -154,7 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: UIConstants.spacingM),
           // Name
           Text(
             data['name']!,
@@ -164,26 +135,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: UIConstants.spacingXs),
           // Specialization
           Text(
             data['specialization']!,
             style: const TextStyle(fontSize: 16, color: Colors.white70),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: UIConstants.spacingS),
           // License Number Badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+              horizontal: UIConstants.spacingM,
+              vertical: UIConstants.spacingXs + 2,
+            ),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(UIConstants.radiusXl),
               border: Border.all(color: Colors.white.withOpacity(0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(Icons.verified, size: 16, color: Colors.white),
-                const SizedBox(width: 6),
+                const SizedBox(width: UIConstants.spacingXs + 2),
                 Text(
                   'License: ${data['licenseNumber']}',
                   style: const TextStyle(
@@ -195,14 +169,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: UIConstants.spacingS),
           // Login Type Badge
           if (auth.loginType != null)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                horizontal: UIConstants.spacingM,
+                vertical: UIConstants.spacingXs,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(UIConstants.radiusM),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -212,7 +189,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     size: 14,
                     color: Colors.white,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: UIConstants.spacingXs + 2),
                   Text(
                     'Signed in with ${_getLoginTypeText(auth.loginType!)}',
                     style: const TextStyle(fontSize: 11, color: Colors.white70),
@@ -220,7 +197,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-          const SizedBox(height: 24),
+          const SizedBox(height: UIConstants.spacingL),
         ],
       ),
     );
@@ -229,7 +206,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Quick Stats Cards
   Widget _buildQuickStats(Map<String, String> data) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: UIConstants.spacingM),
       child: Row(
         children: [
           Expanded(
@@ -237,25 +214,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.people,
               value: data['patientsToday']!,
               label: 'Today',
-              color: Colors.blue,
+              color: UIConstants.infoBlue,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: UIConstants.spacingM),
           Expanded(
             child: _StatCard(
               icon: Icons.star,
               value: data['rating']!,
               label: 'Rating',
-              color: Colors.orange,
+              color: UIConstants.warningOrange,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: UIConstants.spacingM),
           Expanded(
             child: _StatCard(
               icon: Icons.medical_services,
               value: data['consultations']!,
               label: 'Total',
-              color: Colors.green,
+              color: UIConstants.successGreen,
             ),
           ),
         ],
@@ -315,156 +292,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// Account Settings Section
-  Widget _buildAccountSettings(BuildContext context) {
-    return _SectionCard(
-      title: 'Account Settings',
-      icon: Icons.manage_accounts,
-      children: [
-        _SettingsTile(
-          icon: Icons.edit,
-          title: 'Edit Profile',
-          subtitle: 'Update your personal information',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Edit Profile coming soon')),
-            );
-          },
-        ),
-        _SettingsTile(
-          icon: Icons.lock,
-          title: 'Change Password',
-          subtitle: 'Update your account password',
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              AppRoutes.changePassword,
-            ); // Use constant instead
-          },
-        ),
-        _SettingsTile(
-          icon: Icons.security,
-          title: 'Security Settings',
-          subtitle: 'Two-factor authentication, sessions',
-          onTap: () {
-            Navigator.pushNamed(context, AppRoutes.settings);
-          },
-        ),
-      ],
-    );
-  }
-
-  /// App Settings Section
-  Widget _buildAppSettings(BuildContext context) {
-    return _SectionCard(
-      title: 'App Preferences',
-      icon: Icons.settings,
-      children: [
-        _SettingsTile(
-          icon: Icons.notifications,
-          title: 'Notifications',
-          subtitle: 'Manage notification preferences',
-          trailing: Switch(
-            value: true,
-            onChanged: (value) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    value ? 'Notifications enabled' : 'Notifications disabled',
-                  ),
-                ),
-              );
-            },
-            activeColor: const Color(0xFF1C8AE5),
-          ),
-        ),
-        _SettingsTile(
-          icon: Icons.language,
-          title: 'Language',
-          subtitle: 'English (US)',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Language settings coming soon')),
-            );
-          },
-        ),
-        _SettingsTile(
-          icon: Icons.help_outline,
-          title: 'Help & Support',
-          subtitle: 'FAQs, contact support',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Help & Support coming soon')),
-            );
-          },
-        ),
-        _SettingsTile(
-          icon: Icons.privacy_tip,
-          title: 'Privacy Policy',
-          subtitle: 'View our privacy policy',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Privacy Policy coming soon')),
-            );
-          },
-        ),
-        _SettingsTile(
-          icon: Icons.info_outline,
-          title: 'About',
-          subtitle: 'Version 1.0.0',
-          onTap: () {
-            _showAboutDialog(context);
-          },
-        ),
-      ],
-    );
-  }
-
-  void _showAboutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Row(
-              children: [
-                Image.asset(
-                  'assets/images/signlogo.png',
-                  width: 40,
-                  height: 40,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.local_hospital, size: 40);
-                  },
-                ),
-                const SizedBox(width: 12),
-                const Text('About AmerckCare'),
-              ],
-            ),
-            content: const Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Version: 1.0.0'),
-                SizedBox(height: 8),
-                Text('Build: 2024.12.18'),
-                SizedBox(height: 16),
-                Text('© 2024 AmerckCare'),
-                SizedBox(height: 8),
-                Text(
-                  'Your trusted healthcare companion for modern medical practice.',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
-              ),
-            ],
-          ),
-    );
-  }
-
   IconData _getLoginTypeIcon(LoginType type) {
     switch (type) {
       case LoginType.google:
@@ -505,42 +332,35 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(UIConstants.spacingM),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(UIConstants.radiusM),
+        boxShadow: UIConstants.shadowLight,
       ),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(UIConstants.spacingS),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(UIConstants.radiusS),
             ),
             child: Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: UIConstants.spacingS),
           Text(
             value,
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: UIConstants.textDark,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: UIConstants.spacingXs),
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 12, color: UIConstants.textMedium),
           ),
         ],
       ),
@@ -563,34 +383,27 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: UIConstants.spacingM),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(UIConstants.radiusM),
+        boxShadow: UIConstants.shadowLight,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(UIConstants.spacingM),
             child: Row(
               children: [
-                Icon(icon, color: const Color(0xFF1C8AE5), size: 20),
-                const SizedBox(width: 8),
+                Icon(icon, color: UIConstants.primaryBlue, size: 20),
+                const SizedBox(width: UIConstants.spacingS),
                 Text(
                   title,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: UIConstants.textDark,
                   ),
                 ),
               ],
@@ -621,107 +434,47 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: UIConstants.spacingM,
+        vertical: UIConstants.spacingM,
+      ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(UIConstants.spacingS),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
+              color: UIConstants.mediumGrey,
+              borderRadius: BorderRadius.circular(UIConstants.radiusS),
             ),
-            child: Icon(icon, color: Colors.grey.shade700, size: 20),
+            child: Icon(icon, color: UIConstants.textMedium, size: 20),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: UIConstants.spacingM),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   label,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: UIConstants.textMedium,
+                  ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: UIConstants.spacingXs),
                 Text(
                   value,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black87,
+                    color: UIConstants.textDark,
                   ),
                 ),
               ],
             ),
           ),
           if (isClickable)
-            Icon(Icons.open_in_new, size: 16, color: Colors.grey.shade400),
+            Icon(Icons.open_in_new, size: 16, color: UIConstants.textLight),
         ],
-      ),
-    );
-  }
-}
-
-/// Settings Tile Widget
-class _SettingsTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-  final Widget? trailing;
-
-  const _SettingsTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.onTap,
-    this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: const Color(0xFF1C8AE5), size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            ),
-            trailing ??
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.grey.shade400,
-                  size: 20,
-                ),
-          ],
-        ),
       ),
     );
   }
