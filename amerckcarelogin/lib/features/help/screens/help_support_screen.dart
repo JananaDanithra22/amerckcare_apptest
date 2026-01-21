@@ -450,7 +450,6 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           ),
           const Divider(height: 1),
           ...items.asMap().entries.map((entry) {
-            final index = entry.key;
             final item = entry.value;
             final globalIndex = items.indexOf(item);
 

@@ -54,24 +54,6 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
                 const Divider(),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.help_outline,
-                  title: 'Help & Support',
-                  onTap: () {
-                    Navigator.pop(context);
-                    AppRoutes.toHelpSupport(context);
-                  },
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.info_outline,
-                  title: 'About Us',
-                  onTap: () {
-                    Navigator.pop(context);
-                    AppRoutes.toAboutUs(context);
-                  },
-                ),
               ],
             ),
           ),

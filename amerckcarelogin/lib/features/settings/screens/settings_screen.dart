@@ -112,16 +112,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
-        _SettingsTile(
-          icon: Icons.privacy_tip,
-          title: 'Privacy Settings',
-          subtitle: 'Control your data and privacy',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Privacy settings coming soon')),
-            );
-          },
-        ),
       ],
     );
   }
@@ -132,39 +122,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
       title: 'App Preferences',
       icon: Icons.settings,
       children: [
-        _SettingsTile(
-          icon: Icons.notifications,
-          title: 'Notifications',
-          subtitle:
-              _notificationsEnabled
-                  ? 'All notifications enabled'
-                  : 'Notifications disabled',
-          trailing: Switch(
-            value: _notificationsEnabled,
-            onChanged: (value) {
-              setState(() => _notificationsEnabled = value);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    value ? 'Notifications enabled' : 'Notifications disabled',
+        ListTile(
+          leading: const Icon(Icons.notifications, color: Colors.blue),
+          title: const Text('Notifications'),
+          subtitle: Text(
+            _notificationsEnabled
+                ? 'All notifications enabled'
+                : 'Notifications disabled',
+          ),
+          trailing: Transform.scale(
+            scale: 0.8, // 👈 same size as biometric switch
+            child: Switch(
+              value: _notificationsEnabled,
+              onChanged: (value) {
+                setState(() => _notificationsEnabled = value);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      value
+                          ? 'Notifications enabled'
+                          : 'Notifications disabled',
+                    ),
+                    behavior: SnackBarBehavior.floating,
                   ),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            activeColor: UIConstants.primaryBlue,
+                );
+              },
+              activeColor: UIConstants.darkBlue, // 👈 same color
+            ),
           ),
         ),
-        _SettingsTile(
-          icon: Icons.language,
-          title: 'Language',
-          subtitle: 'English (US)',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Language settings coming soon')),
-            );
-          },
-        ),
+
         _SettingsTile(
           icon: Icons.palette,
           title: 'Theme',
@@ -211,26 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             AppRoutes.toAboutUs(context);
           },
         ),
-        _SettingsTile(
-          icon: Icons.description,
-          title: 'Terms of Service',
-          subtitle: 'Read our terms and conditions',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Terms of Service coming soon')),
-            );
-          },
-        ),
-        _SettingsTile(
-          icon: Icons.policy,
-          title: 'Privacy Policy',
-          subtitle: 'How we handle your data',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Privacy Policy coming soon')),
-            );
-          },
-        ),
+
         _SettingsTile(
           icon: Icons.info,
           title: 'App Version',

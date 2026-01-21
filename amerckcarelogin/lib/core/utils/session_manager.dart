@@ -31,13 +31,11 @@ class SessionManager {
   // State tracking
   DateTime _lastActivityTime = DateTime.now();
   bool _isWarningShown = false;
-  bool _isInBackground = false;
   bool _isEnabled = false;
 
   // Callbacks
   VoidCallback? _onWarningShow;
   VoidCallback? _onLogout;
-  BuildContext? _context;
 
   /// Initialize session manager with callbacks
   void initialize({
@@ -45,7 +43,6 @@ class SessionManager {
     required VoidCallback onWarningShow,
     required VoidCallback onLogout,
   }) {
-    _context = context;
     _onWarningShow = onWarningShow;
     _onLogout = onLogout;
 
@@ -59,7 +56,6 @@ class SessionManager {
     _isEnabled = true;
     _lastActivityTime = DateTime.now();
     _isWarningShown = false;
-    _isInBackground = false;
 
     _startInactivityTimer();
 
@@ -100,7 +96,6 @@ class SessionManager {
   void onAppPaused() {
     if (!_isEnabled) return;
 
-    _isInBackground = true;
     _inactivityTimer?.cancel();
     _startBackgroundTimer();
 
@@ -111,7 +106,6 @@ class SessionManager {
   void onAppResumed() {
     if (!_isEnabled) return;
 
-    _isInBackground = false;
     _backgroundTimer?.cancel();
 
     final timeInBackground = DateTime.now().difference(_lastActivityTime);
@@ -213,7 +207,6 @@ class SessionManager {
   /// Dispose (cleanup)
   void dispose() {
     _cancelAllTimers();
-    _context = null;
     _onWarningShow = null;
     _onLogout = null;
   }
