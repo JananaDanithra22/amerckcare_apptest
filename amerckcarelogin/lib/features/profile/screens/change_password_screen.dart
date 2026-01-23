@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/constants/ui_constants.dart';
+import '../../../core/constants/text_styles.dart';
 import '../../auth/widgets/custom_text_field.dart';
 import '../../auth/widgets/custom_button.dart';
 
@@ -305,9 +306,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           Expanded(
             child: Text(
               'For your security, you\'ll need to enter your current password before setting a new one.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              style: AppTextStyles.bodySmall.copyWith(
                 color: UIConstants.infoBlue.withOpacity(0.9),
-                height: 1.4,
               ),
             ),
           ),
@@ -331,12 +331,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             children: [
               Icon(Icons.lock_outline, color: Colors.grey.shade700, size: 20),
               const SizedBox(width: UIConstants.spacingS),
-              Text(
-                'Password Requirements',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
+              Text('Password Requirements', style: AppTextStyles.headingSmall),
             ],
           ),
           const SizedBox(height: UIConstants.spacingM),
@@ -359,9 +354,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             color: UIConstants.successGreen.withOpacity(0.8),
           ),
           const SizedBox(width: UIConstants.spacingS),
-          Expanded(
-            child: Text(text, style: Theme.of(context).textTheme.bodySmall),
-          ),
+          Expanded(child: Text(text, style: AppTextStyles.bodySmall)),
         ],
       ),
     );
@@ -429,12 +422,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
+        Text(label, style: AppTextStyles.headingSmall),
         const SizedBox(height: UIConstants.spacingS),
         CustomTextField(
           controller: controller,
