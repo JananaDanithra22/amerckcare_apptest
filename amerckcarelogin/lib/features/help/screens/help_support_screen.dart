@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/ui_constants.dart';
+import '../../../core/constants/text_styles.dart';
 
 /// Help & Support screen for AmerckCare
 /// Includes FAQs, contact options, and support resources
@@ -67,20 +68,16 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             ),
           ),
           const SizedBox(height: UIConstants.spacingL),
-          const Text(
+          Text(
             'How can we help you?',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+            style: AppTextStyles.headingXLarge.copyWith(color: Colors.white),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: UIConstants.spacingS),
-          const Text(
+          Text(
             'Find answers to common questions or get in touch with our support team',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, color: Colors.white, height: 1.5),
+            style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
           ),
         ],
       ),
@@ -94,14 +91,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Quick Actions',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: UIConstants.textDark,
-            ),
-          ),
+          Text('Quick Actions', style: AppTextStyles.headingMedium),
           const SizedBox(height: UIConstants.spacingM),
           Row(
             children: [
@@ -162,13 +152,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Frequently Asked Questions',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: UIConstants.textDark,
-            ),
+            style: AppTextStyles.headingMedium,
           ),
           const SizedBox(height: UIConstants.spacingM),
           _buildFaqCategory('Getting Started', Icons.rocket_launch, [
@@ -277,19 +263,12 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             color: UIConstants.primaryBlue,
           ),
           const SizedBox(height: UIConstants.spacingM),
-          const Text(
-            'Still need help?',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: UIConstants.textDark,
-            ),
-          ),
+          Text('Still need help?', style: AppTextStyles.headingMedium),
           const SizedBox(height: UIConstants.spacingS),
-          const Text(
+          Text(
             'Our support team is here to help you',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, color: UIConstants.textMedium),
+            style: AppTextStyles.bodyMedium,
           ),
           const SizedBox(height: UIConstants.spacingL),
           _buildContactInfo(
@@ -325,14 +304,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       decoration: BoxDecoration(color: UIConstants.mediumGrey),
       child: Column(
         children: [
-          const Text(
-            'Additional Resources',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: UIConstants.textDark,
-            ),
-          ),
+          Text('Additional Resources', style: AppTextStyles.headingSmall),
           const SizedBox(height: UIConstants.spacingM),
           Wrap(
             alignment: WrapAlignment.center,
@@ -348,10 +320,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           const SizedBox(height: UIConstants.spacingL),
           const Divider(),
           const SizedBox(height: UIConstants.spacingM),
-          Text(
-            'AmerckCare v1.0.0',
-            style: TextStyle(fontSize: 12, color: UIConstants.textMedium),
-          ),
+          Text('AmerckCare v1.0.0', style: AppTextStyles.labelSmall),
         ],
       ),
     );
@@ -389,20 +358,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             const SizedBox(height: UIConstants.spacingS),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+              style: AppTextStyles.settingsTileTitle.copyWith(color: color),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: UIConstants.spacingXs),
             Text(
               subtitle,
-              style: const TextStyle(
-                fontSize: 11,
-                color: UIConstants.textMedium,
-              ),
+              style: AppTextStyles.caption,
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -437,14 +399,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   child: Icon(icon, color: UIConstants.primaryBlue, size: 20),
                 ),
                 const SizedBox(width: UIConstants.spacingM),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: UIConstants.textDark,
-                  ),
-                ),
+                Text(title, style: AppTextStyles.headingSmall),
               ],
             ),
           ),
@@ -479,15 +434,12 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 Expanded(
                   child: Text(
                     item.question,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight:
-                          isExpanded ? FontWeight.bold : FontWeight.w500,
-                      color:
-                          isExpanded
-                              ? UIConstants.primaryBlue
-                              : UIConstants.textDark,
-                    ),
+                    style:
+                        isExpanded
+                            ? AppTextStyles.settingsTileTitle.copyWith(
+                              color: UIConstants.primaryBlue,
+                            )
+                            : AppTextStyles.settingsTileTitle,
                   ),
                 ),
                 Icon(
@@ -511,14 +463,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 color: UIConstants.lightGrey,
                 borderRadius: BorderRadius.circular(UIConstants.radiusS),
               ),
-              child: Text(
-                item.answer,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: UIConstants.textMedium,
-                  height: 1.5,
-                ),
-              ),
+              child: Text(item.answer, style: AppTextStyles.bodyMedium),
             ),
           ),
         if (index < 10) const Divider(height: 1),
@@ -548,30 +493,16 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: UIConstants.textMedium,
-                ),
-              ),
+              Text(title, style: AppTextStyles.labelSmall),
               const SizedBox(height: UIConstants.spacingXs),
               Text(
                 value,
-                style: const TextStyle(
-                  fontSize: 15,
+                style: AppTextStyles.bodyMedium.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: UIConstants.textDark,
                 ),
               ),
               const SizedBox(height: UIConstants.spacingXs),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: UIConstants.textMedium,
-                ),
-              ),
+              Text(subtitle, style: AppTextStyles.labelSmall),
             ],
           ),
         ),
@@ -583,14 +514,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   Widget _buildFooterLink(String text) {
     return InkWell(
       onTap: () => _showComingSoonSnackbar(text),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 13,
-          color: UIConstants.primaryBlue,
-          decoration: TextDecoration.underline,
-        ),
-      ),
+      child: Text(text, style: AppTextStyles.linkSmall),
     );
   }
 

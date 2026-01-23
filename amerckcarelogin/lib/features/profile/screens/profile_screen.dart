@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/ui_constants.dart';
+import '../../../core/constants/text_styles.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -129,17 +130,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Name
           Text(
             data['name']!,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+            style: AppTextStyles.headingLarge.copyWith(color: Colors.white),
           ),
           const SizedBox(height: UIConstants.spacingXs),
           // Specialization
           Text(
             data['specialization']!,
-            style: const TextStyle(fontSize: 16, color: Colors.white70),
+            style: AppTextStyles.bodyLarge.copyWith(color: Colors.white70),
           ),
           const SizedBox(height: UIConstants.spacingS),
           // License Number Badge
@@ -160,8 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(width: UIConstants.spacingXs + 2),
                 Text(
                   'License: ${data['licenseNumber']}',
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: AppTextStyles.labelSmall.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w500,
                   ),
@@ -192,7 +188,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(width: UIConstants.spacingXs + 2),
                   Text(
                     'Signed in with ${_getLoginTypeText(auth.loginType!)}',
-                    style: const TextStyle(fontSize: 11, color: Colors.white70),
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.white70,
+                    ),
                   ),
                 ],
               ),
@@ -349,19 +347,9 @@ class _StatCard extends StatelessWidget {
             child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(height: UIConstants.spacingS),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: UIConstants.textDark,
-            ),
-          ),
+          Text(value, style: AppTextStyles.statValue),
           const SizedBox(height: UIConstants.spacingXs),
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, color: UIConstants.textMedium),
-          ),
+          Text(label, style: AppTextStyles.statLabel),
         ],
       ),
     );
@@ -398,14 +386,7 @@ class _SectionCard extends StatelessWidget {
               children: [
                 Icon(icon, color: UIConstants.primaryBlue, size: 20),
                 const SizedBox(width: UIConstants.spacingS),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: UIConstants.textDark,
-                  ),
-                ),
+                Text(title, style: AppTextStyles.headingSmall),
               ],
             ),
           ),
@@ -453,22 +434,9 @@ class _InfoRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: UIConstants.textMedium,
-                  ),
-                ),
+                Text(label, style: AppTextStyles.infoRowLabel),
                 const SizedBox(height: UIConstants.spacingXs),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: UIConstants.textDark,
-                  ),
-                ),
+                Text(value, style: AppTextStyles.infoRowValue),
               ],
             ),
           ),
