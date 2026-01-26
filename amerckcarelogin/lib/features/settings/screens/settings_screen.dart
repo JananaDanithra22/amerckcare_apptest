@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../../core/constants/ui_constants.dart';
+import '../../../core/constants/text_styles.dart';
 import '../../../config/routes.dart';
 import '../widgets/biometric_settings_tile.dart';
 
@@ -124,11 +125,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       children: [
         ListTile(
           leading: const Icon(Icons.notifications, color: Colors.blue),
-          title: const Text('Notifications'),
+          title: Text('Notifications', style: AppTextStyles.listTileTitle),
           subtitle: Text(
             _notificationsEnabled
                 ? 'All notifications enabled'
                 : 'Notifications disabled',
+            style: AppTextStyles.listTileSubtitle,
           ),
           trailing: Transform.scale(
             scale: 0.8, // 👈 same size as biometric switch
@@ -236,22 +238,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 const SizedBox(width: UIConstants.spacingM),
-                const Text('About AmerckCare'),
+                Text('About AmerckCare', style: AppTextStyles.dialogTitle),
               ],
             ),
-            content: const Column(
+            content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Version: 1.0.0'),
-                SizedBox(height: UIConstants.spacingS),
-                Text('Build: 2024.12.18'),
-                SizedBox(height: UIConstants.spacingM),
-                Text('© 2024 AmerckCare'),
-                SizedBox(height: UIConstants.spacingS),
+                Text('Version: 1.0.0', style: AppTextStyles.bodyMedium),
+                const SizedBox(height: UIConstants.spacingS),
+                Text('Build: 2024.12.18', style: AppTextStyles.bodyMedium),
+                const SizedBox(height: UIConstants.spacingM),
+                Text('© 2024 AmerckCare', style: AppTextStyles.bodyMedium),
+                const SizedBox(height: UIConstants.spacingS),
                 Text(
                   'Your trusted healthcare companion for modern medical practice.',
-                  style: TextStyle(color: UIConstants.textMedium, fontSize: 13),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: UIConstants.textMedium,
+                  ),
                 ),
               ],
             ),
@@ -303,14 +307,7 @@ class _SectionCard extends StatelessWidget {
                   child: Icon(icon, color: UIConstants.primaryBlue, size: 20),
                 ),
                 const SizedBox(width: UIConstants.spacingM),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: UIConstants.textDark,
-                  ),
-                ),
+                Text(title, style: AppTextStyles.sectionHeader),
               ],
             ),
           ),
@@ -362,22 +359,9 @@ class _SettingsTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: UIConstants.textDark,
-                    ),
-                  ),
+                  Text(title, style: AppTextStyles.settingsTileTitle),
                   const SizedBox(height: UIConstants.spacingXs),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: UIConstants.textMedium,
-                    ),
-                  ),
+                  Text(subtitle, style: AppTextStyles.settingsTileSubtitle),
                 ],
               ),
             ),
