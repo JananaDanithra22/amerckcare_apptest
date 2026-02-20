@@ -7,6 +7,7 @@ import '../providers/profile_provider.dart';
 import '../models/user_profile_model.dart';
 import '../../../core/constants/ui_constants.dart';
 import '../../../core/constants/text_styles.dart';
+import 'package:lottie/lottie.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -352,6 +353,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           key: _formKey,
           child: Column(
             children: [
+              // Lottie animation at top center
+              Center(
+                child: Lottie.asset(
+                  'assets/update.json',
+                  width: 150,
+                  height: 150,
+                  fit: BoxFit.contain,
+                  repeat: true,
+                  animate: true,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(
+                      Icons.edit,
+                      size: 80,
+                      color: UIConstants.primaryBlue,
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: UIConstants.spacingM),
+
               _buildField(
                 'Full Name',
                 _nameController,
