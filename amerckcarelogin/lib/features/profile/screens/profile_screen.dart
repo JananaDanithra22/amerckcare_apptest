@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../providers/profile_provider.dart';
+import '../models/user_profile_model.dart';
 import '../../../core/constants/ui_constants.dart';
 import '../../../core/constants/text_styles.dart';
 
@@ -15,25 +17,29 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   @override
+  void initState() {
+    super.initState();
+    // Load profile when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final uid = auth.getCurrentUserId(); // We'll add this method below
+      if (uid != null) {
+        Provider.of<ProfileProvider>(context, listen: false).loadProfile(uid);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
-    final userEmail = auth.getCurrentUserEmail() ?? 'doctor@amerckcare.com';
-    final userName = userEmail.split('@')[0];
-    final firstChar = userName.isNotEmpty ? userName[0].toUpperCase() : 'D';
+    final profileProvider = Provider.of<ProfileProvider>(context);
 
-    // TODO: Replace with real data from backend
-    final doctorData = {
-      'name': 'Dr. $userName',
-      'specialization': 'General Physician',
-      'licenseNumber': 'MED-2024-${userName.hashCode % 10000}',
-      'email': userEmail,
-      'phone': '+1 (555) 123-4567',
-      'experience': '8 years',
-      'patientsToday': '12',
-      'totalPatients': '450+',
-      'rating': '4.8',
-      'consultations': '1,234',
-    };
+    // Use Firestore data if loaded, otherwise fallback to email
+    final email = auth.getCurrentUserEmail() ?? '';
+    final profile = profileProvider.profile;
+    final displayName = profile?.name ?? email.split('@')[0];
+    final firstChar =
+        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'D';
 
     return Scaffold(
       backgroundColor: UIConstants.lightGrey,
@@ -42,40 +48,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
         backgroundColor: UIConstants.primaryBlue,
         foregroundColor: Colors.white,
+        actions: [
+          // Edit button in top right
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed:
+                profileProvider.isLoading
+                    ? null
+                    : () => _openEditProfile(context, profile, email),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Profile Header Card
-            _buildProfileHeader(context, firstChar, doctorData, auth),
+      body:
+          profileProvider.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _buildProfileHeader(
+                      context,
+                      firstChar,
+                      profile,
+                      email,
+                      auth,
+                    ),
+                    const SizedBox(height: UIConstants.spacingM),
+                    _buildQuickStats(profile),
+                    const SizedBox(height: UIConstants.spacingM),
+                    _buildProfessionalInfo(profile),
+                    const SizedBox(height: UIConstants.spacingM),
+                    _buildContactInfo(profile, email),
+                    const SizedBox(height: UIConstants.spacingXl),
+                  ],
+                ),
+              ),
+    );
+  }
 
-            const SizedBox(height: UIConstants.spacingM),
-
-            // Quick Stats
-            _buildQuickStats(doctorData),
-
-            const SizedBox(height: UIConstants.spacingM),
-
-            // Professional Information
-            _buildProfessionalInfo(doctorData),
-
-            const SizedBox(height: UIConstants.spacingM),
-
-            // Contact Information
-            _buildContactInfo(doctorData),
-
-            const SizedBox(height: UIConstants.spacingXl),
-          ],
-        ),
+  void _openEditProfile(
+    BuildContext context,
+    UserProfile? profile,
+    String email,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => EditProfileScreen(currentProfile: profile, email: email),
       ),
     );
   }
 
-  /// Profile Header with Photo and Basic Info
   Widget _buildProfileHeader(
     BuildContext context,
     String firstChar,
-    Map<String, String> data,
+    UserProfile? profile,
+    String email,
     AuthProvider auth,
   ) {
     return Container(
@@ -84,125 +112,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         children: [
           const SizedBox(height: UIConstants.spacingL),
-          // Profile Picture
-          Stack(
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  border: Border.all(color: Colors.white, width: 4),
-                  boxShadow: UIConstants.shadowMedium,
-                ),
-                child: Center(
-                  child: Text(
-                    firstChar,
-                    style: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      color: UIConstants.primaryBlue,
-                    ),
-                  ),
+          // Profile Picture Circle
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              border: Border.all(color: Colors.white, width: 4),
+              boxShadow: UIConstants.shadowMedium,
+            ),
+            child: Center(
+              child: Text(
+                firstChar,
+                style: const TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.bold,
+                  color: UIConstants.primaryBlue,
                 ),
               ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(UIConstants.spacingS),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: UIConstants.shadowLight,
-                  ),
-                  child: Icon(
-                    Icons.camera_alt,
-                    size: 16,
-                    color: Colors.grey.shade700,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
           const SizedBox(height: UIConstants.spacingM),
-          // Name
           Text(
-            data['name']!,
+            profile?.name ?? email.split('@')[0],
             style: AppTextStyles.headingLarge.copyWith(color: Colors.white),
           ),
           const SizedBox(height: UIConstants.spacingXs),
-          // Specialization
           Text(
-            data['specialization']!,
+            profile?.specialization ?? 'Doctor',
             style: AppTextStyles.bodyLarge.copyWith(color: Colors.white70),
           ),
-          const SizedBox(height: UIConstants.spacingS),
-          // License Number Badge
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: UIConstants.spacingM,
-              vertical: UIConstants.spacingXs + 2,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(UIConstants.radiusXl),
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.verified, size: 16, color: Colors.white),
-                const SizedBox(width: UIConstants.spacingXs + 2),
-                Text(
-                  'License: ${data['licenseNumber']}',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: UIConstants.spacingS),
-          // Login Type Badge
-          if (auth.loginType != null)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: UIConstants.spacingM,
-                vertical: UIConstants.spacingXs,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(UIConstants.radiusM),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _getLoginTypeIcon(auth.loginType!),
-                    size: 14,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: UIConstants.spacingXs + 2),
-                  Text(
-                    'Signed in with ${_getLoginTypeText(auth.loginType!)}',
-                    style: AppTextStyles.caption.copyWith(
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           const SizedBox(height: UIConstants.spacingL),
         ],
       ),
     );
   }
 
-  /// Quick Stats Cards
-  Widget _buildQuickStats(Map<String, String> data) {
+  Widget _buildQuickStats(UserProfile? profile) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: UIConstants.spacingM),
       child: Row(
@@ -210,7 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Expanded(
             child: _StatCard(
               icon: Icons.people,
-              value: data['patientsToday']!,
+              value: '12',
               label: 'Today',
               color: UIConstants.infoBlue,
             ),
@@ -219,7 +166,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Expanded(
             child: _StatCard(
               icon: Icons.star,
-              value: data['rating']!,
+              value: '4.8',
               label: 'Rating',
               color: UIConstants.warningOrange,
             ),
@@ -228,7 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Expanded(
             child: _StatCard(
               icon: Icons.medical_services,
-              value: data['consultations']!,
+              value: '1,234',
               label: 'Total',
               color: UIConstants.successGreen,
             ),
@@ -238,8 +185,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// Professional Information Section
-  Widget _buildProfessionalInfo(Map<String, String> data) {
+  Widget _buildProfessionalInfo(UserProfile? profile) {
     return _SectionCard(
       title: 'Professional Information',
       icon: Icons.work,
@@ -247,29 +193,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _InfoRow(
           icon: Icons.school,
           label: 'Specialization',
-          value: data['specialization']!,
+          value: profile?.specialization ?? 'Not set',
         ),
         _InfoRow(
           icon: Icons.badge,
           label: 'License Number',
-          value: data['licenseNumber']!,
+          value: profile?.licenseNumber ?? 'Not set',
         ),
         _InfoRow(
           icon: Icons.trending_up,
           label: 'Experience',
-          value: data['experience']!,
-        ),
-        _InfoRow(
-          icon: Icons.groups,
-          label: 'Total Patients',
-          value: data['totalPatients']!,
+          value: profile?.experience ?? 'Not set',
         ),
       ],
     );
   }
 
-  /// Contact Information Section
-  Widget _buildContactInfo(Map<String, String> data) {
+  Widget _buildContactInfo(UserProfile? profile, String fallbackEmail) {
     return _SectionCard(
       title: 'Contact Information',
       icon: Icons.contact_mail,
@@ -277,49 +217,241 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _InfoRow(
           icon: Icons.email,
           label: 'Email',
-          value: data['email']!,
-          isClickable: true,
+          value: profile?.email ?? fallbackEmail,
         ),
         _InfoRow(
           icon: Icons.phone,
           label: 'Phone',
-          value: data['phone']!,
-          isClickable: true,
+          value: profile?.phone ?? 'Not set',
         ),
       ],
     );
   }
+}
 
-  IconData _getLoginTypeIcon(LoginType type) {
-    switch (type) {
-      case LoginType.google:
-        return Icons.g_mobiledata;
-      case LoginType.facebook:
-        return Icons.facebook;
-      case LoginType.emailPassword:
-        return Icons.email;
+// ─────────────────────────────────────────────
+// EDIT PROFILE SCREEN
+// ─────────────────────────────────────────────
+
+class EditProfileScreen extends StatefulWidget {
+  final UserProfile? currentProfile;
+  final String email;
+
+  const EditProfileScreen({Key? key, this.currentProfile, required this.email})
+    : super(key: key);
+
+  @override
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+
+  late TextEditingController _nameController;
+  late TextEditingController _phoneController;
+  late TextEditingController _specializationController;
+  late TextEditingController _licenseController;
+  late TextEditingController _experienceController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill fields with existing data
+    _nameController = TextEditingController(
+      text: widget.currentProfile?.name ?? '',
+    );
+    _phoneController = TextEditingController(
+      text: widget.currentProfile?.phone ?? '',
+    );
+    _specializationController = TextEditingController(
+      text: widget.currentProfile?.specialization ?? '',
+    );
+    _licenseController = TextEditingController(
+      text: widget.currentProfile?.licenseNumber ?? '',
+    );
+    _experienceController = TextEditingController(
+      text: widget.currentProfile?.experience ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _specializationController.dispose();
+    _licenseController.dispose();
+    _experienceController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final profileProvider = Provider.of<ProfileProvider>(
+      context,
+      listen: false,
+    );
+    final uid = auth.getCurrentUserId();
+
+    if (uid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: User not logged in')),
+      );
+      return;
+    }
+
+    final updatedProfile = UserProfile(
+      uid: uid,
+      name: _nameController.text.trim(),
+      email: widget.currentProfile?.email ?? widget.email,
+      phone: _phoneController.text.trim(),
+      specialization: _specializationController.text.trim(),
+      licenseNumber: _licenseController.text.trim(),
+      experience: _experienceController.text.trim(),
+      updatedAt: DateTime.now(),
+    );
+
+    final success = await profileProvider.updateProfile(updatedProfile);
+
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Profile updated successfully!'),
+            backgroundColor: UIConstants.successGreen,
+          ),
+        );
+        Navigator.pop(context); // Go back to profile screen
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(profileProvider.errorMessage ?? 'Update failed'),
+            backgroundColor: UIConstants.errorRed,
+          ),
+        );
+      }
     }
   }
 
-  String _getLoginTypeText(LoginType type) {
-    switch (type) {
-      case LoginType.google:
-        return 'Google';
-      case LoginType.facebook:
-        return 'Facebook';
-      case LoginType.emailPassword:
-        return 'Email';
-    }
+  @override
+  Widget build(BuildContext context) {
+    final profileProvider = Provider.of<ProfileProvider>(context);
+
+    return Scaffold(
+      backgroundColor: UIConstants.lightGrey,
+      appBar: AppBar(
+        title: const Text('Edit Profile'),
+        backgroundColor: UIConstants.primaryBlue,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(UIConstants.spacingM),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              _buildField(
+                'Full Name',
+                _nameController,
+                Icons.person,
+                validator: (v) => v!.trim().isEmpty ? 'Name is required' : null,
+              ),
+              const SizedBox(height: UIConstants.spacingM),
+              _buildField(
+                'Phone Number',
+                _phoneController,
+                Icons.phone,
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: UIConstants.spacingM),
+              _buildField(
+                'Specialization',
+                _specializationController,
+                Icons.school,
+              ),
+              const SizedBox(height: UIConstants.spacingM),
+              _buildField('License Number', _licenseController, Icons.badge),
+              const SizedBox(height: UIConstants.spacingM),
+              _buildField(
+                'Experience (e.g. 5 years)',
+                _experienceController,
+                Icons.trending_up,
+              ),
+              const SizedBox(height: UIConstants.spacingXl),
+
+              // Save Button
+              SizedBox(
+                width: double.infinity,
+                height: UIConstants.buttonHeight,
+                child: ElevatedButton(
+                  onPressed: profileProvider.isLoading ? null : _saveProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: UIConstants.primaryBlue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(UIConstants.radiusM),
+                    ),
+                  ),
+                  child:
+                      profileProvider.isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                            'Save Profile',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildField(
+    String label,
+    TextEditingController controller,
+    IconData icon, {
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(UIConstants.radiusM),
+        boxShadow: UIConstants.shadowLight,
+      ),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: UIConstants.primaryBlue),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(UIConstants.radiusM),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+        ),
+      ),
+    );
   }
 }
 
-/// Stat Card Widget
+// ─── Reusable widgets (same as before) ───
+
 class _StatCard extends StatelessWidget {
   final IconData icon;
   final String value;
   final String label;
   final Color color;
-
   const _StatCard({
     required this.icon,
     required this.value,
@@ -356,12 +488,10 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-/// Section Card Widget
 class _SectionCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final List<Widget> children;
-
   const _SectionCard({
     required this.title,
     required this.icon,
@@ -398,18 +528,14 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-/// Info Row Widget
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final bool isClickable;
-
   const _InfoRow({
     required this.icon,
     required this.label,
     required this.value,
-    this.isClickable = false,
   });
 
   @override
@@ -440,8 +566,6 @@ class _InfoRow extends StatelessWidget {
               ],
             ),
           ),
-          if (isClickable)
-            Icon(Icons.open_in_new, size: 16, color: UIConstants.textLight),
         ],
       ),
     );

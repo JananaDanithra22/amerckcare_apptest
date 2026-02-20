@@ -12,6 +12,7 @@ import 'shared/widgets/loading_overlay.dart';
 import 'core/widgets/activity_detector.dart';
 import 'core/utils/session_manager.dart';
 import 'core/widgets/session_warning.dart';
+import 'features/profile/providers/profile_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +20,11 @@ void main() async {
 
   runApp(
     MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => AuthProvider())],
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
+      ],
+      
       child: const MyApp(),
     ),
   );

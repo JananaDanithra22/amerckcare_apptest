@@ -2,6 +2,7 @@
 
 import '../providers/auth_provider.dart';
 import '../../../shared/widgets/loading_overlay.dart';
+import '../../profile/services/user_service.dart';
 
 /// Simple result class for auth operations
 class AuthResult {

@@ -350,4 +350,9 @@ class AuthProvider with ChangeNotifier {
   Future<Map<String, String?>?> getStoredCredentials() async {
     return await _biometricService.getStoredCredentials();
   }
+
+  // FIXED - returns the user's UID string
+  String? getCurrentUserId() {
+    return _auth.currentUser?.uid;
+  }
 }

@@ -7,6 +7,7 @@ import '../../../core/utils/session_manager.dart';
 import '../../../shared/widgets/app_drawer.dart';
 import '../../../core/constants/text_styles.dart';
 import '../widgets/home_widgets.dart';
+import '../../profile/providers/profile_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -30,8 +31,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
+    final profileProvider = Provider.of<ProfileProvider>(context);
     final userEmail = auth.getCurrentUserEmail() ?? 'User';
-    final userName = userEmail.split('@')[0];
+
+    // Use saved profile name if available, otherwise fall back to email prefix
+    final userName = profileProvider.profile?.name ?? userEmail.split('@')[0];
 
     return Scaffold(
       key: _scaffoldKey,
