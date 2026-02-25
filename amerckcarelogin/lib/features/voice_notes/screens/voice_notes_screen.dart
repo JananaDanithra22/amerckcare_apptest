@@ -21,6 +21,8 @@ class VoiceNotesScreen extends StatefulWidget {
 class _VoiceNotesScreenState extends State<VoiceNotesScreen>
     with SingleTickerProviderStateMixin {
   final SpeechToText _speech = SpeechToText();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _patientIdController = TextEditingController();
 
   bool _isListening = false;
   bool _speechAvailable = false;
@@ -34,7 +36,6 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
   void initState() {
     super.initState();
 
-    // Pulse animation for mic button
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -52,12 +53,13 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
   @override
   void dispose() {
     _pulseController.dispose();
+    _titleController.dispose();
+    _patientIdController.dispose();
     _speech.stop();
     super.dispose();
   }
 
   Future<void> _initSpeech() async {
-    // Request microphone permission
     final status = await Permission.microphone.request();
     if (status != PermissionStatus.granted) {
       setState(() => _statusText = 'Microphone permission denied');
@@ -107,7 +109,6 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
     }
 
     if (_isListening) {
-      // Stop listening
       await _speech.stop();
       setState(() {
         _isListening = false;
@@ -118,7 +119,6 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
       });
       _pulseController.stop();
     } else {
-      // Start listening
       setState(() {
         _isListening = true;
         _statusText = 'Listening... speak now';
@@ -128,9 +128,7 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
 
       await _speech.listen(
         onResult: (result) {
-          setState(() {
-            _currentText = result.recognizedWords;
-          });
+          setState(() => _currentText = result.recognizedWords);
         },
         listenFor: const Duration(minutes: 2),
         pauseFor: const Duration(seconds: 5),
@@ -153,15 +151,19 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
         Provider.of<AuthProvider>(context, listen: false).getCurrentUserId();
     if (uid == null) return;
 
-    // Auto-generate title from first few words
+    // Use custom title or auto-generate from first 5 words
     final words = _currentText.trim().split(' ');
-    final autoTitle = words.take(5).join(' ') + (words.length > 5 ? '...' : '');
+    final autoTitle =
+        _titleController.text.trim().isNotEmpty
+            ? _titleController.text.trim()
+            : words.take(5).join(' ') + (words.length > 5 ? '...' : '');
 
     final note = VoiceNote(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       uid: uid,
       content: _currentText.trim(),
       title: autoTitle,
+      patientId: _patientIdController.text.trim(), // can be empty
       createdAt: DateTime.now(),
     );
 
@@ -176,6 +178,9 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
           _currentText = '';
           _statusText = 'Tap the mic to start';
         });
+        _titleController.clear();
+        _patientIdController.clear();
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ Note saved!'),
@@ -198,6 +203,8 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
       _currentText = '';
       _statusText = 'Tap the mic to start';
     });
+    _titleController.clear();
+    _patientIdController.clear();
   }
 
   @override
@@ -214,10 +221,7 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
       ),
       body: Column(
         children: [
-          // ── Recorder Section (top) ──
           _buildRecorderSection(),
-
-          // ── Saved Notes List (bottom) ──
           Expanded(child: _buildNotesList(notesProvider)),
         ],
       ),
@@ -234,7 +238,7 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
           bottomRight: Radius.circular(32),
         ),
       ),
-      padding: const EdgeInsets.all(UIConstants.spacingL),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
         children: [
           Text(
@@ -243,7 +247,7 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
           ),
           const SizedBox(height: UIConstants.spacingL),
 
-          // Mic Button with pulse animation
+          // Mic Button
           GestureDetector(
             onTap: _toggleListening,
             child: AnimatedBuilder(
@@ -280,10 +284,10 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
 
           const SizedBox(height: UIConstants.spacingL),
 
-          // Transcribed text box
+          // Transcribed text display
           Container(
             width: double.infinity,
-            constraints: const BoxConstraints(minHeight: 80),
+            constraints: const BoxConstraints(minHeight: 70),
             padding: const EdgeInsets.all(UIConstants.spacingM),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.15),
@@ -300,10 +304,28 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
             ),
           ),
 
-          const SizedBox(height: UIConstants.spacingM),
+          // Show title + patient ID fields only when there's text
+          if (_currentText.isNotEmpty) ...[
+            const SizedBox(height: UIConstants.spacingM),
 
-          // Save & Clear buttons
-          if (_currentText.isNotEmpty)
+            // Title field
+            _buildWhiteField(
+              controller: _titleController,
+              hint: 'Note title (optional — auto-generated if empty)',
+              icon: Icons.title,
+            ),
+            const SizedBox(height: UIConstants.spacingS),
+
+            // Patient ID field
+            _buildWhiteField(
+              controller: _patientIdController,
+              hint: 'Patient ID (optional)',
+              icon: Icons.person_outline,
+              keyboardType: TextInputType.text,
+            ),
+            const SizedBox(height: UIConstants.spacingM),
+
+            // Save & Clear buttons
             Row(
               children: [
                 Expanded(
@@ -343,9 +365,40 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
                 ),
               ],
             ),
+          ],
 
           const SizedBox(height: UIConstants.spacingS),
         ],
+      ),
+    );
+  }
+
+  Widget _buildWhiteField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(UIConstants.radiusM),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+          prefixIcon: Icon(icon, color: Colors.white70, size: 20),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: UIConstants.spacingM,
+            vertical: UIConstants.spacingM,
+          ),
+        ),
       ),
     );
   }
@@ -408,7 +461,7 @@ class _VoiceNotesScreenState extends State<VoiceNotesScreen>
   }
 }
 
-// ── Note Card Widget ──
+// ── Note Card ──
 class _NoteCard extends StatelessWidget {
   final VoiceNote note;
   final VoidCallback onDelete;
@@ -431,6 +484,7 @@ class _NoteCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Title row
             Row(
               children: [
                 Container(
@@ -461,10 +515,55 @@ class _NoteCard extends StatelessWidget {
                 ),
               ],
             ),
+
             const SizedBox(height: UIConstants.spacingS),
             Text(note.content, style: AppTextStyles.bodyMedium),
             const SizedBox(height: UIConstants.spacingS),
-            Text(formatted, style: AppTextStyles.caption),
+
+            // Date & Patient ID row
+            Row(
+              children: [
+                Icon(Icons.access_time, size: 12, color: UIConstants.textLight),
+                const SizedBox(width: 4),
+                Text(formatted, style: AppTextStyles.caption),
+
+                // Show patient ID badge only if it was set
+                if (note.patientId.isNotEmpty) ...[
+                  const SizedBox(width: UIConstants.spacingM),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: UIConstants.infoBlue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(UIConstants.radiusS),
+                      border: Border.all(
+                        color: UIConstants.infoBlue.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.person_outline,
+                          size: 11,
+                          color: UIConstants.infoBlue,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          note.patientId,
+                          style: AppTextStyles.caption.copyWith(
+                            color: UIConstants.infoBlue,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),

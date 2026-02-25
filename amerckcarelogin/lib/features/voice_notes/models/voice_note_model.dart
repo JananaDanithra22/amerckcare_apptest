@@ -2,9 +2,10 @@
 
 class VoiceNote {
   final String id;
-  final String uid; // doctor's user ID
-  final String content; // the transcribed text
-  final String title; // auto-generated title
+  final String uid;
+  final String content;
+  final String title;
+  final String patientId; // ← NEW
   final DateTime createdAt;
 
   const VoiceNote({
@@ -12,6 +13,7 @@ class VoiceNote {
     required this.uid,
     required this.content,
     required this.title,
+    required this.patientId, // ← NEW
     required this.createdAt,
   });
 
@@ -21,6 +23,7 @@ class VoiceNote {
       'uid': uid,
       'content': content,
       'title': title,
+      'patientId': patientId, // ← NEW
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -31,6 +34,7 @@ class VoiceNote {
       uid: map['uid'] ?? '',
       content: map['content'] ?? '',
       title: map['title'] ?? 'Untitled Note',
+      patientId: map['patientId'] ?? '', // ← NEW
       createdAt:
           map['createdAt'] != null
               ? DateTime.parse(map['createdAt'])
