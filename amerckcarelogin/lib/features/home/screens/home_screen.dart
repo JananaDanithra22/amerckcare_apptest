@@ -8,6 +8,10 @@ import '../../../shared/widgets/app_drawer.dart';
 import '../../../core/constants/text_styles.dart';
 import '../widgets/home_widgets.dart';
 import '../../profile/providers/profile_provider.dart';
+import 'package:intl/intl.dart';
+import '../../voice_notes/providers/voice_notes_provider.dart';
+import '../../voice_notes/screens/voice_notes_screen.dart';
+import '../../../core/constants/ui_constants.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);

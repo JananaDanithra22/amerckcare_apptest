@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/utils/session_manager.dart';
 import '../../../core/constants/text_styles.dart';
+import '../../../config/routes.dart';
 
 // ============================================================================
 // HEADER WIDGET
@@ -737,10 +738,16 @@ class _FeatureCard extends StatelessWidget {
     final color = feature['color'] as Color;
 
     return InkWell(
-      onTap:
-          () => ScaffoldMessenger.of(context).showSnackBar(
+      // REPLACE with:
+      onTap: () {
+        if (feature['title'] == 'Voice Notes') {
+          AppRoutes.toVoiceNotes(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('${feature['title']} coming soon')),
-          ),
+          );
+        }
+      },
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(14),
