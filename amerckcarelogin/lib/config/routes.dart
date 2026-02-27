@@ -10,6 +10,7 @@ import '../features/profile/screens/profile_screen.dart';
 import '../features/profile/screens/change_password_screen.dart';
 import '../features/about/screens/about_us_screen.dart';
 import '../features/help/screens/help_support_screen.dart';
+import '../features/voice_notes/screens/voice_notes_screen.dart';
 
 /// Centralized route configuration for the application
 /// Uses named routes for better navigation management
@@ -28,6 +29,7 @@ class AppRoutes {
   static const String changePassword = '/change-password';
   static const String aboutUs = '/about-us';
   static const String helpSupport = '/help-support';
+  static const String voiceNotes = '/voice-notes';
 
   /// Returns a map of all app routes
   /// Each route is lazily instantiated when needed
@@ -43,6 +45,7 @@ class AppRoutes {
       changePassword: (_) => const ChangePasswordScreen(),
       aboutUs: (_) => const AboutUsScreen(),
       helpSupport: (_) => const HelpSupportScreen(),
+      voiceNotes: (_) => const VoiceNotesScreen(),
     };
   }
 
@@ -107,5 +110,9 @@ class AppRoutes {
   /// Clear navigation stack and go to home
   static Future<void> clearAndGoToHome(BuildContext context) {
     return Navigator.pushNamedAndRemoveUntil(context, home, (_) => false);
+  }
+
+  static Future<void> toVoiceNotes(BuildContext context) {
+    return Navigator.pushNamed(context, voiceNotes);
   }
 }

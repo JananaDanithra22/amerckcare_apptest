@@ -8,6 +8,8 @@ import '../models/user_profile_model.dart';
 import '../../../core/constants/ui_constants.dart';
 import '../../../core/constants/text_styles.dart';
 import 'package:lottie/lottie.dart';
+import '../providers/profile_avatar_provider.dart';
+import '../widgets/profile_avatar.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -66,12 +68,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
               : SingleChildScrollView(
                 child: Column(
                   children: [
-                    _buildProfileHeader(
-                      context,
-                      firstChar,
-                      profile,
-                      email,
-                      auth,
+                    // REPLACE old Stack with:
+                    Consumer2<AuthProvider, ProfileAvatarProvider>(
+                      builder: (context, auth, avatarProvider, _) {
+                        return Stack(
+                          children: [
+                            ProfileAvatar(
+                              photoFile: avatarProvider.photoFile,
+                              displayLetter: firstChar,
+                              size: 100,
+                              onTap: () async {
+                                final success = await avatarProvider
+                                    .pickAndSetPhoto(context);
+                                if (success && mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('✅ Photo updated!'),
+                                      backgroundColor: Color(0xFF4CAF50),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                            // Camera icon badge
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  Icons.camera_alt,
+                                  size: 16,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: UIConstants.spacingM),
                     _buildQuickStats(profile),
