@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/session_manager.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../config/routes.dart';
+import 'package:provider/provider.dart';
+import '../../profile/providers/profile_avatar_provider.dart';
+import '../../profile/widgets/profile_avatar.dart';
 
 // ============================================================================
 // HEADER WIDGET
@@ -158,17 +161,17 @@ class MorningBriefingCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.medical_services,
-                  color: Colors.white,
-                  size: 28,
-                ),
+              Consumer<ProfileAvatarProvider>(
+                builder: (context, avatarProvider, _) {
+                  return ProfileAvatar(
+                    photoFile: avatarProvider.photoFile,
+                    displayLetter:
+                        userName.isNotEmpty ? userName[0].toUpperCase() : 'D',
+                    size: 52,
+                    letterColor: const Color(0xFF1C8AE5),
+                    backgroundColor: Colors.white,
+                  );
+                },
               ),
             ],
           ),
