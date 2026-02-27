@@ -15,9 +15,12 @@ class ProfileAvatarProvider extends ChangeNotifier {
   bool get hasPhoto => _photoFile != null;
 
   /// Show bottom sheet and pick image from camera or gallery
+  /// Show bottom sheet and pick image from camera or gallery
   Future<bool> pickAndSetPhoto(BuildContext context) async {
-    File? picked;
+    ImageSource? selectedSource;
+    bool shouldRemove = false;
 
+    // Step 1: Show bottom sheet and WAIT for user selection
     await showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -30,7 +33,6 @@ class ProfileAvatarProvider extends ChangeNotifier {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Handle bar
                   Container(
                     width: 40,
                     height: 4,
@@ -58,15 +60,9 @@ class ProfileAvatarProvider extends ChangeNotifier {
                     ),
                     title: const Text('Take a Photo'),
                     subtitle: const Text('Use your camera'),
-                    onTap: () async {
-                      Navigator.pop(ctx);
-                      final result = await _picker.pickImage(
-                        source: ImageSource.camera,
-                        imageQuality: 80,
-                        maxWidth: 512,
-                        maxHeight: 512,
-                      );
-                      if (result != null) picked = File(result.path);
+                    onTap: () {
+                      selectedSource = ImageSource.camera; // ← just set source
+                      Navigator.pop(ctx); // ← close sheet
                     },
                   ),
 
@@ -85,19 +81,13 @@ class ProfileAvatarProvider extends ChangeNotifier {
                     ),
                     title: const Text('Choose from Gallery'),
                     subtitle: const Text('Pick an existing photo'),
-                    onTap: () async {
-                      Navigator.pop(ctx);
-                      final result = await _picker.pickImage(
-                        source: ImageSource.gallery,
-                        imageQuality: 80,
-                        maxWidth: 512,
-                        maxHeight: 512,
-                      );
-                      if (result != null) picked = File(result.path);
+                    onTap: () {
+                      selectedSource = ImageSource.gallery; // ← just set source
+                      Navigator.pop(ctx); // ← close sheet
                     },
                   ),
 
-                  // Remove (only show if photo exists)
+                  // Remove (only if photo exists)
                   if (_photoFile != null)
                     ListTile(
                       leading: Container(
@@ -114,8 +104,8 @@ class ProfileAvatarProvider extends ChangeNotifier {
                       title: const Text('Remove Photo'),
                       subtitle: const Text('Go back to default avatar'),
                       onTap: () {
+                        shouldRemove = true; // ← flag to remove
                         Navigator.pop(ctx);
-                        clearPhoto();
                       },
                     ),
 
@@ -126,13 +116,43 @@ class ProfileAvatarProvider extends ChangeNotifier {
           ),
     );
 
-    if (picked != null) {
-      _photoFile = picked;
-      notifyListeners();
-      return true;
+    // Step 2: Handle remove
+    if (shouldRemove) {
+      clearPhoto();
+      return false; // not a new photo — caller handles snackbar separately
     }
 
-    return false;
+    // Step 3: No selection made
+    if (selectedSource == null) return false;
+
+    // Step 4: NOW open camera/gallery AFTER bottom sheet is fully closed
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final result = await _picker.pickImage(
+        source: selectedSource!,
+        imageQuality: 80,
+        maxWidth: 512,
+        maxHeight: 512,
+      );
+
+      if (result != null) {
+        _photoFile = File(result.path);
+        _isLoading = false;
+        notifyListeners(); // ← triggers UI rebuild everywhere
+        return true;
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error picking image: $e');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   /// Clear photo (on remove or logout)

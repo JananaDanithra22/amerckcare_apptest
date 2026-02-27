@@ -5,6 +5,9 @@ import 'package:provider/provider.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../config/routes.dart';
 import '../../core/utils/session_manager.dart';
+import '../../features/profile/providers/profile_avatar_provider.dart';
+import '../../features/profile/widgets/profile_avatar.dart';
+import '../../features/profile/providers/profile_provider.dart';
 
 /// Reusable app drawer with user profile and navigation
 class AppDrawer extends StatelessWidget {
@@ -13,14 +16,19 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
+    final profileProvider = Provider.of<ProfileProvider>(context);
     final userEmail = auth.getCurrentUserEmail() ?? 'User';
-    final firstChar = userEmail.isNotEmpty ? userEmail[0].toUpperCase() : 'U';
 
+    // Use saved profile name if available, fallback to email prefix
+    final displayName =
+        profileProvider.profile?.name ?? userEmail.split('@')[0];
+    final firstChar =
+        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
     return Drawer(
       child: Column(
         children: [
           // ✅ User Profile Header with clickable avatar
-          _buildUserHeader(context, userEmail, firstChar, auth),
+          _buildUserHeader(context, userEmail, firstChar, displayName, auth),
 
           // ✅ Navigation Menu Items
           Expanded(
@@ -103,12 +111,13 @@ class AppDrawer extends StatelessWidget {
   }
 
   /// Build user profile header with clickable avatar
-  Widget _buildUserHeader(
-    BuildContext context,
-    String userEmail,
-    String firstChar,
-    AuthProvider auth,
-  ) {
+ Widget _buildUserHeader(
+  BuildContext context,
+  String userEmail,
+  String firstChar,
+  String displayName,   // ← ADD
+  AuthProvider auth,
+) {
     return UserAccountsDrawerHeader(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -120,26 +129,25 @@ class AppDrawer extends StatelessWidget {
           ],
         ),
       ),
-      currentAccountPicture: GestureDetector(
-        onTap: () {
-          Navigator.pop(context);
-          AppRoutes.toProfile(context);
+      currentAccountPicture: Consumer<ProfileAvatarProvider>(
+        builder: (context, avatarProvider, _) {
+          return ProfileAvatar(
+            photoFile: avatarProvider.photoFile,
+            displayLetter: firstChar,
+            size: 72,
+            letterColor: const Color(0xFF1C8AE5),
+            backgroundColor: Colors.white,
+            onTap: () {
+              Navigator.pop(context);
+              AppRoutes.toProfile(context);
+            },
+          );
         },
-        child: CircleAvatar(
-          backgroundColor: Colors.white,
-          child: Text(
-            firstChar,
-            style: const TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1C8AE5),
-            ),
-          ),
-        ),
       ),
-      accountName: const Text(
-        'Welcome!',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      // REPLACE with:
+      accountName: Text(
+        displayName.isNotEmpty ? 'Dr. $displayName' : 'Welcome!',
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
       accountEmail: Text(userEmail, style: const TextStyle(fontSize: 14)),
       otherAccountsPictures: [
