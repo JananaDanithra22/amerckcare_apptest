@@ -25,6 +25,8 @@ dependencies:
   permission_handler: ^11.3.0   # microphone permission
   intl: ^0.19.0                 # date formatting
   image_picker: ^1.1.2        # camera + gallery picker
+  flutter_markdown: ^0.7.3    # render formatted document preview
+  share_plus: ^10.0.0         # share/export documents
 
 
 
