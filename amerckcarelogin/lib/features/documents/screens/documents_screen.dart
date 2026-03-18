@@ -10,6 +10,7 @@ import '../models/document_model.dart';
 import '../../../core/constants/ui_constants.dart';
 import '../../../core/constants/text_styles.dart';
 import 'create_document_screen.dart';
+import 'document_view_screen.dart';
 
 class DocumentsScreen extends StatefulWidget {
   final DocumentType? initialType;
@@ -33,8 +34,6 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           listen: false,
         ).loadDocuments(uid);
       }
-
-      // Auto-open create screen if type passed from home
       if (widget.initialType != null) {
         _openCreateScreen(widget.initialType!);
       }
@@ -64,10 +63,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       ),
       body: Column(
         children: [
-          // Document type selector
           _buildTypeGrid(),
-
-          // Saved documents
           Expanded(child: _buildSavedDocuments(docProvider)),
         ],
       ),
@@ -88,7 +84,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'icon': Icons.send,
         'color': const Color(0xFF4CAF50),
         'label': 'Referral',
-        'sub': 'Send to specialist',
+        'sub': 'To specialist',
       },
       {
         'type': DocumentType.leaveCertificate,
@@ -96,6 +92,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'color': const Color(0xFFFF5252),
         'label': 'Leave Cert',
         'sub': 'Medical leave',
+      },
+      {
+        'type': DocumentType.prescription,
+        'icon': Icons.medication,
+        'color': const Color(0xFFFF9800),
+        'label': 'Prescription',
+        'sub': 'Rx summary',
       },
       {
         'type': DocumentType.custom,
@@ -122,8 +125,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     child: GestureDetector(
                       onTap: () => _openCreateScreen(t['type'] as DocumentType),
                       child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           color: color.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(
@@ -133,19 +136,23 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         ),
                         child: Column(
                           children: [
-                            Icon(t['icon'] as IconData, color: color, size: 26),
-                            const SizedBox(height: 6),
+                            Icon(t['icon'] as IconData, color: color, size: 22),
+                            const SizedBox(height: 4),
                             Text(
                               t['label'] as String,
-                              style: AppTextStyles.labelSmall.copyWith(
-                                color: color,
+                              style: TextStyle(
+                                fontSize: 10,
                                 fontWeight: FontWeight.bold,
+                                color: color,
                               ),
                               textAlign: TextAlign.center,
                             ),
                             Text(
                               t['sub'] as String,
-                              style: AppTextStyles.caption,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: Colors.grey,
+                              ),
                               textAlign: TextAlign.center,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -210,16 +217,25 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             ),
             itemCount: docProvider.documents.length,
             itemBuilder: (context, index) {
+              final doc = docProvider.documents[index];
               return _DocumentCard(
-                doc: docProvider.documents[index],
-                onDelete:
-                    () => docProvider.deleteDocument(
-                      docProvider.documents[index].id,
-                    ),
-                onShare:
-                    () => Share.share(
-                      docProvider.documents[index].content,
-                      subject: docProvider.documents[index].title,
+                doc: doc,
+                onDelete: () {
+                  final uid =
+                      Provider.of<AuthProvider>(
+                        context,
+                        listen: false,
+                      ).getCurrentUserId() ??
+                      '';
+                  docProvider.deleteDocument(uid, doc.id);
+                },
+                onShare: () => Share.share(doc.content, subject: doc.title),
+                onTap:
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DocumentViewScreen(doc: doc),
+                      ),
                     ),
               );
             },
@@ -230,46 +246,23 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   }
 }
 
-// ── Document Card ──
+// ── Document Card ─────────────────────────────────────────────────────────────
 class _DocumentCard extends StatelessWidget {
   final MedicalDocument doc;
   final VoidCallback onDelete;
   final VoidCallback onShare;
+  final VoidCallback onTap;
 
   const _DocumentCard({
     required this.doc,
     required this.onDelete,
     required this.onShare,
+    required this.onTap,
   });
-
-  Color get _typeColor {
-    switch (doc.type) {
-      case DocumentType.aiWriter:
-        return const Color(0xFF7C4DFF);
-      case DocumentType.referral:
-        return const Color(0xFF4CAF50);
-      case DocumentType.leaveCertificate:
-        return const Color(0xFFFF5252);
-      case DocumentType.custom:
-        return const Color(0xFFFF6D00);
-    }
-  }
-
-  IconData get _typeIcon {
-    switch (doc.type) {
-      case DocumentType.aiWriter:
-        return Icons.psychology;
-      case DocumentType.referral:
-        return Icons.send;
-      case DocumentType.leaveCertificate:
-        return Icons.event_note;
-      case DocumentType.custom:
-        return Icons.edit_document;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
+    final color = doc.typeColor;
     final formatted = DateFormat('MMM d, yyyy • h:mm a').format(doc.createdAt);
 
     return Container(
@@ -279,130 +272,145 @@ class _DocumentCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(UIConstants.radiusM),
         boxShadow: UIConstants.shadowLight,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingM),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(UIConstants.spacingS),
-                  decoration: BoxDecoration(
-                    color: _typeColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(UIConstants.radiusS),
-                  ),
-                  child: Icon(_typeIcon, color: _typeColor, size: 18),
-                ),
-                const SizedBox(width: UIConstants.spacingS),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(doc.title, style: AppTextStyles.listTileTitle),
-                      Text(formatted, style: AppTextStyles.caption),
-                    ],
-                  ),
-                ),
-                // Type badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _typeColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(UIConstants.radiusS),
-                  ),
-                  child: Text(
-                    doc.typeLabel,
-                    style: AppTextStyles.caption.copyWith(
-                      color: _typeColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Patient info
-          if (doc.patientName.isNotEmpty)
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(UIConstants.radiusM),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: UIConstants.spacingM,
-              ),
+              padding: const EdgeInsets.all(UIConstants.spacingM),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.person_outline,
-                    size: 14,
-                    color: UIConstants.textLight,
+                  Container(
+                    padding: const EdgeInsets.all(UIConstants.spacingS),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(UIConstants.radiusS),
+                    ),
+                    child: Icon(doc.typeIcon, color: color, size: 18),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${doc.patientName}${doc.patientId.isNotEmpty ? ' · ${doc.patientId}' : ''}',
-                    style: AppTextStyles.caption,
+                  const SizedBox(width: UIConstants.spacingS),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          doc.title,
+                          style: AppTextStyles.listTileTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(formatted, style: AppTextStyles.caption),
+                      ],
+                    ),
+                  ),
+                  if (doc.savedToFirestore)
+                    Tooltip(
+                      message: 'Synced to cloud',
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: Icon(
+                          Icons.cloud_done,
+                          size: 16,
+                          color: Colors.green.shade400,
+                        ),
+                      ),
+                    ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(UIConstants.radiusS),
+                    ),
+                    child: Text(
+                      doc.typeLabel,
+                      style: AppTextStyles.caption.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
 
-          // Content preview
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingM),
-            child: Text(
-              doc.content,
-              style: AppTextStyles.bodySmall,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
+            // Patient info
+            if (doc.patientName.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: UIConstants.spacingM,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.person_outline,
+                      size: 13,
+                      color: UIConstants.textLight,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      doc.patientId.isNotEmpty
+                          ? '${doc.patientName} · ${doc.patientId}'
+                          : doc.patientName,
+                      style: AppTextStyles.caption,
+                    ),
+                  ],
+                ),
+              ),
+
+            // Content preview
+            Padding(
+              padding: const EdgeInsets.all(UIConstants.spacingM),
+              child: Text(
+                doc.content,
+                style: AppTextStyles.bodySmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
 
-          // Action buttons
-          const Divider(height: 1),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () => _viewDocument(context),
-                  icon: const Icon(Icons.visibility_outlined, size: 16),
-                  label: const Text('View'),
-                ),
-              ),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: onShare,
-                  icon: const Icon(Icons.share_outlined, size: 16),
-                  label: const Text('Share'),
-                ),
-              ),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () => _confirmDelete(context),
-                  icon: Icon(
-                    Icons.delete_outline,
-                    size: 16,
-                    color: Colors.red.shade400,
-                  ),
-                  label: Text(
-                    'Delete',
-                    style: TextStyle(color: Colors.red.shade400),
+            // Actions
+            const Divider(height: 1),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: onTap,
+                    icon: const Icon(Icons.visibility_outlined, size: 16),
+                    label: const Text('View'),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: onShare,
+                    icon: const Icon(Icons.share_outlined, size: 16),
+                    label: const Text('Share'),
+                  ),
+                ),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () => _confirmDelete(context),
+                    icon: Icon(
+                      Icons.delete_outline,
+                      size: 16,
+                      color: Colors.red.shade400,
+                    ),
+                    label: Text(
+                      'Delete',
+                      style: TextStyle(color: Colors.red.shade400),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-    );
-  }
-
-  void _viewDocument(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => _DocumentViewScreen(doc: doc)),
     );
   }
 
@@ -430,38 +438,6 @@ class _DocumentCard extends StatelessWidget {
               ),
             ],
           ),
-    );
-  }
-}
-
-// ── Full Document View Screen ──
-class _DocumentViewScreen extends StatelessWidget {
-  final MedicalDocument doc;
-
-  const _DocumentViewScreen({required this.doc});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(doc.title),
-        backgroundColor: UIConstants.primaryBlue,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: () => Share.share(doc.content, subject: doc.title),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(UIConstants.spacingL),
-        child: Text(
-          doc.content,
-          style: AppTextStyles.bodyMedium.copyWith(height: 1.8),
-        ),
-      ),
     );
   }
 }

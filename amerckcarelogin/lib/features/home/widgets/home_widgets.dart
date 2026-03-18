@@ -8,6 +8,8 @@ import '../../../config/routes.dart';
 import 'package:provider/provider.dart';
 import '../../profile/providers/profile_avatar_provider.dart';
 import '../../profile/widgets/profile_avatar.dart';
+import '../../documents/models/document_model.dart';
+import '../../documents/screens/documents_screen.dart';
 
 // ============================================================================
 // HEADER WIDGET
@@ -905,10 +907,27 @@ class _DocumentCard extends StatelessWidget {
     final color = document['color'] as Color;
 
     return InkWell(
-      onTap:
-          () => ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${document['title']} coming soon')),
-          ),
+      onTap: () {
+        DocumentType? type;
+        switch (document['title']) {
+          case 'AI Writer':
+            type = DocumentType.aiWriter;
+            break;
+          case 'Referral':
+            type = DocumentType.referral;
+            break;
+          case 'Leave Cert':
+            type = DocumentType.leaveCertificate;
+            break;
+          case 'Custom':
+            type = DocumentType.custom;
+            break;
+        }
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => DocumentsScreen(initialType: type)),
+        );
+      },
       borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.all(12),

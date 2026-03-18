@@ -15,6 +15,7 @@ import 'core/widgets/session_warning.dart';
 import 'features/profile/providers/profile_provider.dart';
 import 'features/voice_notes/providers/voice_notes_provider.dart';
 import 'features/profile/providers/profile_avatar_provider.dart';
+import 'features/documents/providers/document_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => VoiceNotesProvider()),
         ChangeNotifierProvider(create: (_) => ProfileAvatarProvider()),
+        ChangeNotifierProvider(create: (_) => DocumentProvider()),
       ],
 
       child: const MyApp(),
